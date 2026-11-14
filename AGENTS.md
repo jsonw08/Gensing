@@ -13,12 +13,20 @@ Last updated: 2026-11-14 (roles assigned, pytest added; before any real pipeline
 1. **This file**: context, reasoning, rules.
 2. **[`docs/DECISIONS.md`](docs/DECISIONS.md)**: the spec. Exact JSON fields, API, conventions, note ID rules. **The source of truth.** If this file and DECISIONS.md disagree, DECISIONS.md wins.
 3. **[`contracts/`](contracts/)**: one sample JSON per hand-off file, all consistent with each other.
-4. **[`docs/gensing.pdf`](docs/gensing.pdf)**: the original design notes (17 pages): pipeline, stages, scope, risks, nice-to-haves.
-5. **[`docs/Alignment Explained Costs, Dynamic Programming, and DTW.pdf`](docs/)**: stage 4 in depth (penalties, DP table, reference code, DTW as fallback).
-6. **[`docs/NICE_TO_HAVE.md`](docs/NICE_TO_HAVE.md)**: the live nice-to-have list (the PDF's 10, plus new ideas). Add new ideas there, not to the PDF.
+4. **[`docs/PIPELINE_NOTES.md`](docs/PIPELINE_NOTES.md)**: the design notes: pipeline, stages, scope, risks, nice-to-haves.
+5. **[`docs/ALIGNMENT_EXPLAINED.md`](docs/ALIGNMENT_EXPLAINED.md)**: stage 4 in depth (penalties, DP table, reference code, DTW as fallback).
+6. **[`docs/NICE_TO_HAVE.md`](docs/NICE_TO_HAVE.md)**: the live nice-to-have list (the original 10, plus new ideas). Add new ideas there.
+7. **`docs/gensing.pdf`, `docs/Alignment Explained Costs, Dynamic Programming, and DTW.pdf`**: the original
+   design notes as PDFs. **Frozen snapshots, never edited.** 4 and 5 started as exact Markdown copies of them.
 
-The PDFs are the original plan. DECISIONS.md refines them; where they differ, DECISIONS.md is newer
-and was agreed deliberately (each difference and its reason is listed in section 4 below).
+**Which to trust, newest first:** DECISIONS.md → this file → the Markdown notes (4, 5, 6) → the PDFs.
+
+- **Recent developments live only in the Markdown files.** Every change and new decision goes into
+  DECISIONS.md / this file / the Markdown notes, never the PDFs.
+- **Use the PDFs only for older context the Markdown files don't mention** (and for the original
+  layout and diagrams). If a PDF and a Markdown file disagree, the Markdown file is newer and wins.
+- DECISIONS.md refines the design notes; where they differ, DECISIONS.md is newer and was agreed
+  deliberately (each difference and its reason is listed in section 4 below).
 
 ---
 
@@ -92,7 +100,8 @@ contracts/           *.sample.json for all six hand-offs + README
 samples/<piece>/     score.musicxml + takes/ (generated WAVs + answer keys)
 tools/synth_take.py  generates the test recordings
 tools/check_osmd_ids.mjs  proves stage 1 IDs match OSMD's (collectNoteIds() = the frontend's counting recipe)
-docs/                DECISIONS.md, NICE_TO_HAVE.md, the two design PDFs
+docs/                DECISIONS.md, NICE_TO_HAVE.md, PIPELINE_NOTES.md, ALIGNMENT_EXPLAINED.md (current);
+                     gensing.pdf + the alignment PDF (frozen originals, older context only)
 ```
 
 | Command (repo root) | Does |
@@ -147,7 +156,7 @@ that to `localhost:8000` (strips `/api`). Backend Python is run as `backend/.ven
 | `sung_notes`: `sid` from `s0`; pitch = median of middle 60%; `stability_cents` = std dev; optional `params` | Consistent 0-based numbering; scoops ignored; stage 5 needs an exact definition for "shaky"; params make tuning runs comparable |
 | `alignment`: `sid` → **`sids` list** on every pair | Split-note merge (stage 3 cut one note in two) needs several sung notes per match; one uniform shape |
 | `alignment`: `near_id` always set on extras, may be a **rest** | Frontend needs a place for the `+`; extra-during-rest is then just "near_id is a rest" |
-| `alignment`: rests never in `pairs`; `cost`/`total_cost` for debugging | Matches the alignment PDF's code; costs help tuning |
+| `alignment`: rests never in `pairs`; `cost`/`total_cost` for debugging | Matches ALIGNMENT_EXPLAINED.md's code; costs help tuning |
 | `results.notes`: **every** written note, not just problems | Frontend must color green notes too |
 | `results`: pitch `status` and `timing` are separate fields | A note can be flat *and* late |
 | `results`: dropped `direction` | Sign of `cents` already says flat/sharp; redundant fields drift apart |
@@ -254,7 +263,7 @@ drop notes <80 ms, merge same-pitch neighbors with no real break. The most fragi
 
 **Stage 4, alignment (C)**: `align(expected_notes, sung_notes, mode) -> alignment`. Filter out rests; detect octave
 shift (most common sung−written gap rounded to −12/0/+12); free mode: scale times to the score's length;
-edit-distance DP (reference code in the alignment PDF); split-note merge; set `near_id` on extras. First unit test:
+edit-distance DP (reference code in `docs/ALIGNMENT_EXPLAINED.md`); split-note merge; set `near_id` on extras. First unit test:
 written C D E vs sung C E → match, skipped, match.
 
 **Stage 5, grading (C)**: `grade(alignment, expected_notes, sung_notes, mode, preset) -> results`. Subtract the

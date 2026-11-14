@@ -1,6 +1,6 @@
 """Pipeline stages. Each module owns one stage; JSON-shaped dicts are the hand-offs.
 
-Stage -> owner (see docs/gensing.pdf, "Dividing the work"):
+Stage -> owner (see docs/PIPELINE_NOTES.md, "Dividing the work"):
   1 score.py    C   MusicXML -> expected_notes
   2 pitch.py    B   audio -> pitch_track
   3 segment.py  B   pitch_track -> sung_notes

@@ -1,8 +1,8 @@
 # Gensing: Decisions Before We Start
 
 Everything the team agreed on before building, in one place. Read this before starting your part.
-Background and the full pipeline design are in [`gensing.pdf`](gensing.pdf); stage 4 is explained
-in depth in [`Alignment Explained Costs, Dynamic Programming, and DTW.pdf`](Alignment%20Explained%20Costs,%20Dynamic%20Programming,%20and%20DTW.pdf).
+Background and the full pipeline design are in [`PIPELINE_NOTES.md`](PIPELINE_NOTES.md); stage 4 is explained
+in depth in [`ALIGNMENT_EXPLAINED.md`](ALIGNMENT_EXPLAINED.md).
 
 **Change these deliberately, not by drift.** If something here needs to change, change this doc
 and `contracts/` in the same PR, and tell whoever reads the affected file.

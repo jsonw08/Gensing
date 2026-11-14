@@ -2,8 +2,7 @@
 
 Things to build **only after the core works end to end** (colored score + error types + overall
 score, on real recordings). This file is the live list: the original 10 come from
-[`gensing.pdf`](gensing.pdf) ("Nice-to-haves and what to cut", p. 13–14), which can't be edited, so
-new ideas go here instead.
+[`PIPELINE_NOTES.md`](PIPELINE_NOTES.md) ("Nice-to-haves and what to cut"); new ideas go here.
 
 Rules:
 
@@ -18,7 +17,7 @@ Owner letters: A = Jason (frontend), B = Jonathan (audio + server), C = Mehul (m
 
 ---
 
-## Ranked (from gensing.pdf)
+## Ranked (from the original design notes)
 
 | # | Idea | What it is | Touches |
 |---|---|---|---|

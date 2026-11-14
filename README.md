@@ -5,7 +5,7 @@ and get the sheet music back with every note marked: in tune, out of tune, wrong
 skipped or extra, plus an overall score and short AI coaching tips.
 
 - **Start here:** [`docs/DECISIONS.md`](docs/DECISIONS.md): formats, API, conventions agreed before building.
-- Original design: [`docs/gensing.pdf`](docs/gensing.pdf).
+- Original design: [`docs/PIPELINE_NOTES.md`](docs/PIPELINE_NOTES.md); stage 4 in depth: [`docs/ALIGNMENT_EXPLAINED.md`](docs/ALIGNMENT_EXPLAINED.md).
 - AI assistants: [`AGENTS.md`](AGENTS.md) explains everything done so far and why.
 
 ## Repo layout
