@@ -259,14 +259,31 @@ def test_time_signature_changes_shift_bar_starts(tmp_path):
     assert firsts == [("m1-n0", 0.0), ("m2-n0", 4.0), ("m3-n0", 7.0), ("m4-n0", 9.0)]
 
 
-def test_compressed_mxl_gives_same_output(tmp_path):
+def make_mxl(dest: Path, with_container: bool = True) -> Path:
     import zipfile
 
-    mxl = tmp_path / "edge.mxl"
-    with zipfile.ZipFile(mxl, "w") as z:
-        z.writestr(
-            "META-INF/container.xml",
-            '<?xml version="1.0"?><container><rootfiles><rootfile full-path="score.musicxml"/></rootfiles></container>',
-        )
+    with zipfile.ZipFile(dest, "w") as z:
+        if with_container:
+            z.writestr(
+                "META-INF/container.xml",
+                '<?xml version="1.0"?><container><rootfiles><rootfile full-path="score.musicxml"/></rootfiles></container>',
+            )
         z.write(score_path("edge-cases"), "score.musicxml")
-    assert parse_score(mxl) == parse_score(score_path("edge-cases"))
+    return dest
+
+
+@pytest.mark.parametrize("zipped", [False, True], ids=["plain", "zipped"])
+@pytest.mark.parametrize("name", ["score.musicxml", "score.xml", "score.mxl", "upload", "upload.tmp"])
+def test_file_read_by_content_not_name(tmp_path, zipped, name):
+    # /analyze saves uploads under a name it picks; a plain or zipped (.mxl) score must parse either way
+    path = tmp_path / name
+    if zipped:
+        make_mxl(path)
+    else:
+        path.write_bytes(score_path("edge-cases").read_bytes())
+    assert parse_score(path)["notes"] == parse_score(score_path("edge-cases"))["notes"]
+
+
+def test_mxl_without_container_file(tmp_path):
+    mxl = make_mxl(tmp_path / "bare.mxl", with_container=False)
+    assert parse_score(mxl)["notes"] == parse_score(score_path("edge-cases"))["notes"]

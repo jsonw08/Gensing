@@ -265,7 +265,7 @@ Multipart form:
 
 | Field | Type | Notes |
 |---|---|---|
-| `musicxml` | file | `.musicxml`, `.xml`, `.mxl`. Save it **with its original extension**: music21 picks the reader from it (`.mxl` is zipped). |
+| `musicxml` | file | `.musicxml`, `.xml`, `.mxl`. Any saved file name works: stage 1 reads by content (a zip = compressed `.mxl`). |
 | `audio` | file | **Always WAV.** Browsers record WebM (Chrome) or MP4 (Safari); librosa can't read those without ffmpeg. The frontend converts any recording or upload to WAV with the Web Audio API first. |
 | `mode` | `strict` \| `free` | default `strict` |
 | `tempo_bpm` | number, optional | missing = the score's marking. Must be > 0 (validate in the endpoint: `Form(None, gt=0)`). |
@@ -294,7 +294,13 @@ It's a separate call so the colored score appears before the AI feedback is read
 | 422 | input fine, but analysis can't proceed |
 | 500 | our bug |
 
-Codes: `invalid_musicxml`, `invalid_audio`, `no_voice_detected`, `internal_error`.
+Codes: `invalid_musicxml`, `invalid_audio`, `no_voice_detected`, `invalid_input`, `internal_error`.
+
+`invalid_input` (400, `stage: "api"`) = a form field failed validation before any stage ran: missing
+file, `mode`/`preset` not one of the allowed values, `tempo_bpm` ≤ 0 or not a number, `countin_end_sec` < 0.
+`message` names the field (`"tempo_bpm: Input should be greater than 0"`). FastAPI would otherwise answer
+these with its own `{"detail": [...]}` 422; `main.py` converts them so there is only one error shape.
+
 `stage` says whose code failed. `message` can be shown to the user. In code: raise
 `AnalysisError(code, message, stage, status)` from `app.errors` (its own module, so stages
 can import it without a circular import through `app.main`).
