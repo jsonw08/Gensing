@@ -6,7 +6,8 @@ class AnalysisError(Exception):
     """Raise from any stage to return a clean error to the frontend.
 
     code:   invalid_musicxml | invalid_audio | no_voice_detected | internal_error
-    stage:  score | pitch | segment | align | grade | feedback
+            (invalid_input is used by main.py for bad form fields; stages don't raise it)
+    stage:  score | pitch | segment | align | grade | feedback  (api: request validation, main.py)
     status: 400 bad input, 422 input fine but can't analyze, 500 our bug
     """
 

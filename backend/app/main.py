@@ -13,6 +13,7 @@ from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import Body, FastAPI, File, Form, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -41,6 +42,20 @@ async def analysis_error_handler(_: Request, exc: AnalysisError) -> JSONResponse
     )
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    """Bad form fields (tempo_bpm=0, mode="fast", missing file) are rejected by FastAPI before our
+    endpoint runs; without this they'd come back as FastAPI's own {"detail": [...]} 422."""
+    errors = exc.errors()
+    first = errors[0] if errors else {}
+    field = first.get("loc", ("request",))[-1]
+    message = f"{field}: {first.get('msg', 'invalid request')}"
+    return JSONResponse(
+        status_code=400,
+        content={"error": {"code": "invalid_input", "message": message, "stage": "api"}},
+    )
+
+
 def load_sample(name: str) -> dict:
     return json.loads((CONTRACTS_DIR / f"{name}.sample.json").read_text())
 
@@ -55,9 +70,9 @@ async def analyze(
     musicxml: UploadFile = File(...),
     audio: UploadFile = File(...),  # always WAV: the frontend converts recordings/uploads first
     mode: Literal["strict", "free"] = Form("strict"),
-    tempo_bpm: float | None = Form(None),
+    tempo_bpm: float | None = Form(None, gt=0),
     preset: Literal["default", "beginner", "advanced"] = Form("default"),
-    countin_end_sec: float = Form(0.0),
+    countin_end_sec: float = Form(0.0, ge=0),
 ) -> dict:
     # TODO: replace with the real pipeline:
     #   expected = score.parse_score(musicxml_path, tempo_bpm)

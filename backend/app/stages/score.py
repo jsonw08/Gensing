@@ -10,6 +10,8 @@ The frontend (OSMD) builds the same IDs independently, so the counting rules her
   - tie -> every notehead takes an index, but only the first gets an entry; all go in render_ids
 """
 
+import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 
 from music21 import converter, tempo
@@ -72,12 +74,30 @@ def parse_score(musicxml_path: str | Path, tempo_bpm: float | None = None) -> di
 
 
 def _load(path: str | Path):
+    """Read by content, not by file name: music21 picks its reader from the extension, so an upload
+    saved without one (or a zipped .mxl saved as .musicxml) would be rejected. Zip -> .mxl."""
     try:
+        if zipfile.is_zipfile(path):
+            return converter.parseData(_mxl_score_xml(path), format="musicxml")
         # forceSource: never read music21's on-disk pickle cache (keyed by path + mtime);
         # uploads may reuse the same tmp path.
-        return converter.parse(str(path), forceSource=True)
+        return converter.parse(str(path), format="musicxml", forceSource=True)
     except Exception as e:  # music21 raises many different types for bad files
         raise AnalysisError("invalid_musicxml", "This file couldn't be read as MusicXML.", "score", 400) from e
+
+
+def _mxl_score_xml(path: str | Path) -> str:
+    """The score inside a compressed .mxl: the file META-INF/container.xml points to, else the first
+    .xml/.musicxml outside META-INF."""
+    with zipfile.ZipFile(path) as z:
+        names = z.namelist()
+        root = None
+        if "META-INF/container.xml" in names:
+            rootfile = ET.fromstring(z.read("META-INF/container.xml")).find(".//{*}rootfile")
+            root = rootfile.get("full-path") if rootfile is not None else None
+        if root not in names:
+            root = next(n for n in names if n.endswith((".xml", ".musicxml")) and not n.startswith("META-INF/"))
+        return z.read(root).decode("utf-8-sig")
 
 
 def _score_tempo(score, part) -> float:
