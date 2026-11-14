@@ -265,7 +265,7 @@ Multipart form:
 
 | Field | Type | Notes |
 |---|---|---|
-| `musicxml` | file | `.musicxml`, `.xml`, `.mxl`. Save it **with its original extension**: music21 picks the reader from it (`.mxl` is zipped). |
+| `musicxml` | file | `.musicxml`, `.xml`, `.mxl`. Any saved file name works: stage 1 reads by content (a zip = compressed `.mxl`). |
 | `audio` | file | **Always WAV.** Browsers record WebM (Chrome) or MP4 (Safari); librosa can't read those without ffmpeg. The frontend converts any recording or upload to WAV with the Web Audio API first. |
 | `mode` | `strict` \| `free` | default `strict` |
 | `tempo_bpm` | number, optional | missing = the score's marking. Must be > 0 (validate in the endpoint: `Form(None, gt=0)`). |
