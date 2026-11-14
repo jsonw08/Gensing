@@ -189,3 +189,81 @@ def test_nothing_sung_means_everything_skipped():
     result = align(written("C4", "D4"), {"notes": []})
     assert summary(result) == [("skipped", "m1-n0", []), ("skipped", "m1-n1", [])]
     assert result["total_cost"] == 6.0
+
+
+# --------------------------------------------------------------------------- time offset (uploads, recording delay)
+
+
+def shifted(sung_notes, sec, cough_at=None):
+    """Move every sung note by `sec` (an upload's lead-in silence); optionally add a cough first."""
+    notes = [dict(n, start_sec=n["start_sec"] + sec, end_sec=n["end_sec"] + sec) for n in sung_notes["notes"]]
+    if cough_at is not None:
+        notes.insert(0, {"start_sec": cough_at, "end_sec": cough_at + 0.15, "midi": 50.3,
+                         "stability_cents": 80.0, "conf": 0.6})
+    return {"notes": [dict(n, sid=f"s{k}") for k, n in enumerate(notes)]}
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_upload_with_silence_before_singing(piece):
+    expected = parse_score(score_path(piece))
+    sung_notes = shifted(load_take(piece, "perfect")[0], 1.5)
+    result = align(expected, sung_notes)
+    check_invariants(expected, sung_notes, result)
+    assert result["time_offset_sec"] == pytest.approx(1.5, abs=0.001)
+    assert {p["type"] for p in result["pairs"]} == {"match"}
+    assert max(p["cost"] for p in result["pairs"]) < 0.01  # timing lines up after the shift
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_cough_before_singing_is_an_extra_and_does_not_move_the_offset(piece):
+    expected = parse_score(score_path(piece))
+    sung_notes = shifted(load_take(piece, "perfect")[0], 1.5, cough_at=0.4)
+    result = align(expected, sung_notes)
+    check_invariants(expected, sung_notes, result)
+    assert result["time_offset_sec"] == pytest.approx(1.5, abs=0.001)
+    assert summary(result)[0] == ("extra", None, ["s0"])
+    assert [p["type"] for p in result["pairs"][1:]] == ["match"] * (len(result["pairs"]) - 1)
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_shifted_mistakes_take_aligns_like_the_unshifted_one(piece):
+    expected = parse_score(score_path(piece))
+    plain, _ = load_take(piece, "mistakes")
+    a, b = align(expected, plain), align(expected, shifted(plain, 1.5))
+    assert summary(a) == summary(b)
+    assert [p.get("near_id") for p in a["pairs"]] == [p.get("near_id") for p in b["pairs"]]
+    assert b["time_offset_sec"] == pytest.approx(a["time_offset_sec"] + 1.5, abs=0.001)
+
+
+def test_score_that_opens_with_rests():
+    # Schubert-like: 8 beats of piano intro (voice rests), singer's file starts singing at 0.8 s.
+    # The old "first sung note = beat 1" rule would have lined them up with the intro.
+    expected = written(*[None] * 8, "C4", "D4", "E4", "F4")
+    sung_notes = sung(("C4", 0.8), ("D4", 1.8), ("E4", 2.8), ("F4", 3.8))
+    result = align(expected, sung_notes)
+    assert result["time_offset_sec"] == pytest.approx(0.8 - 8.0)
+    assert [p["type"] for p in result["pairs"]] == ["match"] * 4
+    assert max(p["cost"] for p in result["pairs"]) < 1e-6
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_recording_delay_is_measured(piece):
+    expected = parse_score(score_path(piece))
+    sung_notes, answer = load_take(piece, "delayed")
+    result = align(expected, sung_notes)
+    assert result["time_offset_sec"] * 1000 == pytest.approx(answer["expect"]["timing_offset_ms"], abs=1)
+
+
+def test_too_few_pairs_to_trust_means_no_offset():
+    result = align(written("C4", "D4"), sung(("C4", 5.0), ("D4", 6.0)))
+    assert result["time_offset_sec"] == 0.0
+    assert [p["type"] for p in result["pairs"]] == ["match", "match"]  # still paired, just not shifted
+
+
+def test_wrong_notes_do_not_vote():
+    # Three near-right notes 1.0 s late, four wrong notes (3 semitones off) 3.0 s late. If the wrong
+    # ones voted they'd be the majority and the median would be 3.0; only near-right pairs count.
+    expected = written("C4", "D4", "E4", "F4", "G4", "A4", "C6")
+    sung_notes = sung(("C4", 1.0), ("D4", 2.0), ("E4", 3.0), (68, 6.0), (70, 7.0), (72, 8.0), (87, 9.0))
+    # (How the deliberately odd wrong notes get paired in the final pass isn't the point here.)
+    assert align(expected, sung_notes)["time_offset_sec"] == pytest.approx(1.0)

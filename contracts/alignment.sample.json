@@ -1,6 +1,7 @@
 {
   "octave_shift": 0,
   "tempo_scale": 1.0,
+  "time_offset_sec": 0.02,
   "total_cost": 9.62,
   "pairs": [
     {

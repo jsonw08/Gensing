@@ -7,11 +7,13 @@ table method: docs/ALIGNMENT_EXPLAINED.md.
 Steps (later parts fill in the marked ones):
   1. drop rests (they never appear in pairs)
   2. octave shift                                   [3b: detected; 0 for now]
-  3. time offset / tempo scale from matched pairs   [offset step + 3e: 0 s and 1.0 for now]
+  3. time offset from matched pairs (done) / tempo scale [3e: 1.0 for now]
   4. fill the table and trace back                  (this part)
   5. split-note merge                               [3c: every match has one sid for now]
   6. near_id on extras                              (this part)
 """
+
+from statistics import median
 
 from app.errors import AnalysisError
 
@@ -23,6 +25,11 @@ EXTRA_COST = 3.0  # sung note not in the score
 # On an exact tie, prefer the explanation with fewer claimed mistakes: "you sang it" over skip + extra.
 # (Comparing (cost, "name") tuples would break ties alphabetically, so "extra" would beat "match".)
 TIE_ORDER = {"match": 0, "skipped": 1, "extra": 2}
+
+# Time offset (DECISIONS.md section 3, "Time zero"): how far the singer's timeline is shifted from the
+# score's (silence before singing in an upload, browser recording delay). Measured, then removed.
+OFFSET_PITCH_TOL = 1.0  # semitones: only near-right pairs vote (a "wrong note" pair may be a wrong pairing)
+MIN_OFFSET_PAIRS = 3  # fewer voting pairs than this -> too little to trust, offset 0
 
 
 def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
@@ -38,7 +45,8 @@ def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
 
     octave_shift = 0  # 3b
     tempo_scale = 1.0  # 3e (score time = sung time x tempo_scale)
-    sung_beats = [s["start_sec"] * tempo_scale * beats_per_sec for s in sung]
+    time_offset = _time_offset(written, sung, octave_shift)
+    sung_beats = [(s["start_sec"] - time_offset) * tempo_scale * beats_per_sec for s in sung]
 
     pairs, total = _fill_and_trace(written, sung, sung_beats, octave_shift)
 
@@ -50,18 +58,47 @@ def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
     return {
         "octave_shift": octave_shift,
         "tempo_scale": tempo_scale,
+        "time_offset_sec": round(time_offset, 4),
         "total_cost": round(total, 4),
         "pairs": pairs,
     }
 
 
-def pair_cost(written: dict, sung_midi: float, sung_beat: float, octave_shift: int = 0) -> float:
+def pair_cost(
+    written: dict, sung_midi: float, sung_beat: float, octave_shift: int = 0, beat_weight: float = BEAT_WEIGHT
+) -> float:
     """Semitones apart (after the octave shift, capped) + a little for being apart in time."""
     semitones = min(abs(sung_midi - octave_shift - written["midi"]), PITCH_CAP)
-    return semitones + BEAT_WEIGHT * abs(sung_beat - written["onset_beats"])
+    return semitones + beat_weight * abs(sung_beat - written["onset_beats"])
 
 
-def _fill_and_trace(written: list[dict], sung: list[dict], sung_beats: list[float], octave_shift: int):
+def _time_offset(written: list[dict], sung: list[dict], octave_shift: int) -> float:
+    """Seconds to subtract from sung times so they line up with the score.
+
+    Pass 1 pairs by pitch only (timing off, so an unknown shift can't mislead it). Each near-right
+    match votes with (sung start - written start); the median ignores a cough, a skipped note or a
+    few wrong pairings. Works for uploads, scores that open with rests, and recording delay alike.
+    """
+    pairs, _ = _fill_and_trace(written, sung, [0.0] * len(sung), octave_shift, beat_weight=0.0)
+    w_by_id = {w["id"]: w for w in written}
+    s_by_id = {s["sid"]: s for s in sung}
+    votes = []
+    for p in pairs:
+        if p["type"] != "match":
+            continue
+        w, s = w_by_id[p["id"]], s_by_id[p["sids"][0]]
+        if abs(s["midi"] - octave_shift - w["midi"]) <= OFFSET_PITCH_TOL:
+            votes.append(s["start_sec"] - w["onset_sec"])
+    return median(votes) if len(votes) >= MIN_OFFSET_PAIRS else 0.0
+
+
+def _fill_and_trace(
+    written: list[dict],
+    sung: list[dict],
+    sung_beats: list[float],
+    octave_shift: int,
+    beat_weight: float = BEAT_WEIGHT,
+):
     """Edit-distance table: cell (i, j) = cheapest way to handle the first i written and j sung notes."""
     n, m = len(written), len(sung)
     table = [[0.0] * (m + 1) for _ in range(n + 1)]
@@ -74,7 +111,7 @@ def _fill_and_trace(written: list[dict], sung: list[dict], sung_beats: list[floa
                 continue
             options = []
             if i > 0 and j > 0:  # pair written i-1 with sung j-1 (diagonal)
-                c = pair_cost(written[i - 1], sung[j - 1]["midi"], sung_beats[j - 1], octave_shift)
+                c = pair_cost(written[i - 1], sung[j - 1]["midi"], sung_beats[j - 1], octave_shift, beat_weight)
                 options.append((table[i - 1][j - 1] + c, "match", c))
             if i > 0:  # written i-1 skipped (from above)
                 options.append((table[i - 1][j] + SKIP_COST, "skipped", SKIP_COST))

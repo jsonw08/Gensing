@@ -384,7 +384,8 @@ Settle these together at the start. Everything else can be decided by whoever ow
 - [ ] **Note ID scheme:** bar + position in bar; how ties, rests and pickup bars are counted. Frontend
   and score parsing must match exactly.
 - [ ] **Time zero:** 0.0 s = first beat after the count-in, in every file. Uploaded recordings use the
-  first sung note as beat 1.
+  first sung note as beat 1. *(Changed: stage 4 now measures the offset from the matched notes,
+  `time_offset_sec`; see DECISIONS.md section 3.)*
 - [ ] **Units:** pitch as MIDI float, deviations in cents, times in seconds, timing errors in ms.
 - [ ] **Demo pieces:** pick 1–2 (slow, no repeats, few same-pitch repeats) and get their MusicXML.
 - [ ] **Test recordings:** each piece sung well, and sung with deliberate mistakes (one wrong note, one

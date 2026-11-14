@@ -63,7 +63,7 @@ Everyone is on macOS. Frontend calls `/api/*`; Vite proxies to the backend on po
 | Times | seconds |
 | Timing errors | milliseconds; positive = late |
 | Beats | one beat = one quarter note, always (so 6/8 can't cause confusion) |
-| Time zero | 0.0 s = the first beat after the count-in, in every file. For uploaded recordings, the first sung note is beat 1. |
+| Time zero | 0.0 s = the first beat after the count-in, in every file. Recordings without a count-in (uploads) start wherever the file starts; stage 4 measures how far the sung timeline is shifted from the score's (`time_offset_sec`, median of the matched notes) and removes it. Nothing earlier shifts times. (Was "the first sung note is beat 1": breaks on songs that open with rests, or a cough before the first note.) |
 | Missing values | JSON `null`. Never `NaN`: Python's `json` writes it but the browser's `JSON.parse` crashes on it. |
 | Note names | Written notes: spelled as in the score (`"F#4"`, `"Bb4"`). Sung notes (`sang`): sharps. |
 
@@ -176,6 +176,7 @@ All arrays have the same length.
 |---|---|---|
 | `octave_shift` | int | −12, 0 or +12. Stage 5 subtracts it from sung pitch. |
 | `tempo_scale` | float | score time = sung time × `tempo_scale`. 1.0 in strict mode. |
+| `time_offset_sec` | float | Subtracted from sung times before aligning: median of (sung start − written start) over near-right matches (within 1 semitone) from a pitch-only first pass; 0 if fewer than 3. Covers upload lead-in silence and recording delay. `sung_notes` itself is not changed. |
 | `total_cost` | float | Debug only |
 | `pairs` | array | Score order; extras placed where they happened. **Rests never appear.** |
 
@@ -236,7 +237,8 @@ Each entry in `notes`:
 
 Strict mode measures timing against the click (stage 1 onsets). Free mode measures against a
 line fit through ~4 neighbors on each side. Both subtract the singer's median offset first
-(browser recording delay of 50–150 ms + consonant-before-vowel).
+(browser recording delay of 50–150 ms + consonant-before-vowel, or an upload's lead-in silence):
+that offset is `alignment.time_offset_sec`, so stage 4 and 5 use the same number.
 
 **Score weights (first guess):** pitch 40% (% of notes on the right note), intonation 20% (avg
 cents off on right notes: 0 → 100, 50 → 0), rhythm 25% (% of matched notes on time),
