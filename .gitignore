@@ -31,3 +31,6 @@ backend/tmp/
 
 # Pure-tone debug takes (regenerate with: npm run synth -- --clean)
 samples/*/takes-clean/
+
+# Real-world MusicXML fetched by backend/tests/manual/inspect_score.py (third-party, some copyrighted)
+backend/tests/manual/downloads/

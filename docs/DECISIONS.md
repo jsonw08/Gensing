@@ -31,7 +31,9 @@ Each arrow is a JSON file. Stages 1 and 2–3 don't depend on each other; they m
 | 6 | LLM feedback + fallback | `results` → `feedback` | B | `backend/app/stages/feedback.py` |
 | 7 | Frontend: record, draw, color | everything → the app | A | `frontend/` |
 
-B also owns the API endpoints (`backend/app/main.py`). Who is A, B and C is still open.
+B also owns the API endpoints (`backend/app/main.py`).
+
+**Who:** A = Jason, B = Jonathan, C = Mehul.
 
 ---
 
@@ -44,6 +46,7 @@ B also owns the API endpoints (`backend/app/main.py`). Who is A, B and C is stil
 | LLM | Claude API (`anthropic` Python SDK) |
 | Run | `npm run setup` once, then `npm run dev` from the repo root (both servers, one terminal) |
 | Test audio | `npm run synth` (generated recordings + answer keys, see section 7) |
+| Tests | pytest in `backend/tests/`; run `npm test` from the repo root |
 
 Everyone is on macOS. Frontend calls `/api/*`; Vite proxies to the backend on port 8000.
 
@@ -82,6 +85,31 @@ must count identically, or colors land on the wrong noteheads.
 
 Example (`samples/edge-cases`): the pickup bar is `m1`; a B4 tied from bar 4 into bar 5 is one
 entry `m4-n2` with `render_ids: ["m4-n2", "m5-n0"]`, and the next note in bar 5 is `m5-n1`.
+
+### How the frontend counts (OSMD)
+
+The same rules, expressed in OSMD's data model. Reference implementation: `collectNoteIds()` in
+[`tools/check_osmd_ids.mjs`](../tools/check_osmd_ids.mjs), written to be copied into the frontend.
+
+| Rule | OSMD |
+|---|---|
+| Bars | `osmd.Sheet.SourceMeasures`, **index + 1**. Not `MeasureNumber` (that's the printed number: a pickup prints as 0). |
+| Part / voice | `container.StaffEntries[0]` for each `measure.VerticalSourceStaffEntryContainers` (first staff of the first instrument), then `VoiceEntries` whose `ParentVoice.VoiceId === 1` (if the bar has no voice 1: the first voice in it) |
+| Index | One per voice entry, in container order (time order), from 0 |
+| Grace notes | Skip voice entries with `IsGrace` |
+| Rests | `note.isRest()`; they take an index |
+| Chords | One voice entry with several `Notes`: one index; top note = highest `Pitch.getHalfTone()` |
+| Ties | Top note's `NoteTie` exists and `NoteTie.StartNote !== note` → continuation: takes an index, its ID goes in the previous entry's `render_ids`, no entry of its own |
+| Pitch / time (only for checking) | MIDI = `Pitch.getHalfTone() + 12`; onset beats = `(measure.AbsoluteTimestamp + container.Timestamp).RealValue × 4` (OSMD counts in whole notes) |
+| Noteheads to color | `osmd.EngravingRules.GNote(note)` → `GraphicalNote`; `getSVGGElement()` is its SVG |
+
+**Required option:** `autoGenerateMultipleRestMeasuresFromRestMeasures: false`. OSMD's default draws
+several empty bars in a row as one multi-bar rest, and those rests then have no notehead (an extra
+sung during them would have nowhere to show its `+`).
+
+**Verified** with `npm run check:osmd-ids`: real OSMD (2.3.1, in Node) on both samples, six
+real-world files and `rest-bars`. IDs identical to stage 1 and every ID has a drawn notehead. Re-run
+it after upgrading OSMD or changing either side's counting.
 
 ---
 
@@ -237,10 +265,10 @@ Multipart form:
 
 | Field | Type | Notes |
 |---|---|---|
-| `musicxml` | file | `.musicxml`, `.xml`, `.mxl` |
+| `musicxml` | file | `.musicxml`, `.xml`, `.mxl`. Save it **with its original extension**: music21 picks the reader from it (`.mxl` is zipped). |
 | `audio` | file | **Always WAV.** Browsers record WebM (Chrome) or MP4 (Safari); librosa can't read those without ffmpeg. The frontend converts any recording or upload to WAV with the Web Audio API first. |
 | `mode` | `strict` \| `free` | default `strict` |
-| `tempo_bpm` | number, optional | missing = the score's marking |
+| `tempo_bpm` | number, optional | missing = the score's marking. Must be > 0 (validate in the endpoint: `Form(None, gt=0)`). |
 | `preset` | `default` \| `beginner` \| `advanced` | default `default` |
 | `countin_end_sec` | number | where beat 1 is in the recording; 0 for uploads |
 
@@ -268,7 +296,8 @@ It's a separate call so the colored score appears before the AI feedback is read
 
 Codes: `invalid_musicxml`, `invalid_audio`, `no_voice_detected`, `internal_error`.
 `stage` says whose code failed. `message` can be shown to the user. In code: raise
-`AnalysisError(code, message, stage, status)` from `app.main`.
+`AnalysisError(code, message, stage, status)` from `app.errors` (its own module, so stages
+can import it without a circular import through `app.main`).
 
 ### Claude API (stage 6)
 
@@ -328,9 +357,12 @@ Known quirk: in `octave-down`, pYIN marks a few noise frames during rests as voi
 
 ## 8. Still open
 
-- **Roles:** who is A, B, C.
 - **Decision maker** for cuts when time runs short.
 - **Demo pieces:** 1–2 real pieces (slow, no repeats, few repeated same-pitch notes) + real recordings of them sung well and with deliberate mistakes.
+
+### Nice-to-haves
+
+The list (with details and owners) lives in [`NICE_TO_HAVE.md`](NICE_TO_HAVE.md). New ideas go there.
 
 ### If behind schedule, cut in this order
 

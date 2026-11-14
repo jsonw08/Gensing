@@ -4,7 +4,7 @@ This file is for any AI model (Claude, GPT, Gemini, Copilot, Cursor, ...) helpin
 It explains what the project is, what has been built, every decision made so far **and why**, and
 what is expected next. Read it fully before changing anything.
 
-Last updated: 2026-11-14 (initial setup, before any real pipeline code).
+Last updated: 2026-11-14 (roles assigned, pytest added; before any real pipeline code).
 
 ---
 
@@ -15,6 +15,7 @@ Last updated: 2026-11-14 (initial setup, before any real pipeline code).
 3. **[`contracts/`](contracts/)**: one sample JSON per hand-off file, all consistent with each other.
 4. **[`docs/gensing.pdf`](docs/gensing.pdf)**: the original design notes (17 pages): pipeline, stages, scope, risks, nice-to-haves.
 5. **[`docs/Alignment Explained Costs, Dynamic Programming, and DTW.pdf`](docs/)**: stage 4 in depth (penalties, DP table, reference code, DTW as fallback).
+6. **[`docs/NICE_TO_HAVE.md`](docs/NICE_TO_HAVE.md)**: the live nice-to-have list (the PDF's 10, plus new ideas). Add new ideas there, not to the PDF.
 
 The PDFs are the original plan. DECISIONS.md refines them; where they differ, DECISIONS.md is newer
 and was agreed deliberately (each difference and its reason is listed in section 4 below).
@@ -58,13 +59,13 @@ MusicXML (drawn separately in the browser by OSMD) ─────────�
 
 ### Owners
 
-| Role | Stages | Owns |
-|---|---|---|
-| A: Frontend | 7 + in-app recording | `frontend/` |
-| B: Audio + server | 2, 3, 6 + API | `pitch.py`, `segment.py`, `feedback.py`, `main.py` |
-| C: Music logic | 1, 4, 5 | `score.py`, `align.py`, `grade.py` |
+| Role | Person | Stages | Owns |
+|---|---|---|---|
+| A: Frontend | Jason | 7 + in-app recording | `frontend/` |
+| B: Audio + server | Jonathan | 2, 3, 6 + API | `pitch.py`, `segment.py`, `feedback.py`, `main.py` |
+| C: Music logic | Mehul | 1, 4, 5 | `score.py`, `align.py`, `grade.py` |
 
-Which person is A, B or C is not decided yet. When you work on a stage, stay inside its files
+When you work on a stage, stay inside its files
 unless the task requires otherwise, and say so when you touch someone else's.
 
 ---
@@ -77,15 +78,21 @@ CLAUDE.md            points Claude Code at this file
 README.md            human quickstart
 package.json         root scripts: setup / dev / synth (uses `concurrently`)
 backend/
-  requirements.txt   pinned: fastapi, uvicorn, python-multipart, music21, librosa, numpy, anthropic, python-dotenv
+  requirements.txt   pinned: fastapi, uvicorn, python-multipart, music21, librosa, numpy, anthropic, python-dotenv, pytest
+  pytest.ini         test config: tests/ folder; backend/ and tools/ on the import path
+  tests/             pytest unit tests (run with `npm test`)
+  tests/synth_sung.py  load_take(piece, take): perfect sung_notes + answer key per take (tests stages 4-5 without 2-3)
+  tests/manual/      inspect_score.py (look at stage 1 by eye) + fixtures/; downloads/ is gitignored
   .env.example       ANTHROPIC_API_KEY= (copy to backend/.env, which is gitignored)
-  app/main.py        FastAPI: /health, /analyze, /feedback, AnalysisError + handler
+  app/main.py        FastAPI: /health, /analyze, /feedback, AnalysisError handler
+  app/errors.py      AnalysisError (stages import it from here, not from main)
   app/stages/        score.py pitch.py segment.py align.py grade.py feedback.py (stubs)
 frontend/            React + Vite + TS; src/App.tsx (dev page), src/components/ScoreView.tsx (OSMD), src/lib/api.ts
 contracts/           *.sample.json for all six hand-offs + README
 samples/<piece>/     score.musicxml + takes/ (generated WAVs + answer keys)
 tools/synth_take.py  generates the test recordings
-docs/                DECISIONS.md + the two design PDFs
+tools/check_osmd_ids.mjs  proves stage 1 IDs match OSMD's (collectNoteIds() = the frontend's counting recipe)
+docs/                DECISIONS.md, NICE_TO_HAVE.md, the two design PDFs
 ```
 
 | Command (repo root) | Does |
@@ -94,6 +101,9 @@ docs/                DECISIONS.md + the two design PDFs
 | `npm run dev` | backend (:8000, reload) + frontend (:5173) in one terminal, logs prefixed `[api]` / `[web]` |
 | `npm run dev:backend` / `npm run dev:frontend` | one side only |
 | `npm run setup:backend` | re-run after `requirements.txt` changes |
+| `npm test` | run the backend unit tests (pytest; extra args: `npm test -- -k score`) |
+| `npm run check:osmd-ids [-- <name>]` | proves stage 1 IDs == OSMD's IDs and every ID has a drawn notehead (real OSMD in Node via jsdom). `--osmd-defaults` shows the multi-rest problem. |
+| `npm run inspect:score -- <name> [--bars 3-5]` | stage 1 by eye: real MusicXML bars next to `parse_score` output, plus an independent raw-XML check (no args lists names; `all` checks every file). Not a pytest test. |
 | `npm run synth` | regenerate all test takes (`-- --clean` for pure tones into `takes-clean/`) |
 | `cd frontend && npm run build && npm run lint` | type-check, build, lint (oxlint) |
 
@@ -151,7 +161,7 @@ that to `localhost:8000` (strips `/api`). Backend Python is run as `backend/.ven
 | Two endpoints: `/analyze` (stages 1–5) and `/feedback` (stage 6) | The colored score shows immediately; AI feedback loads after |
 | `/analyze` returns `{results, expected_notes, sung_notes, pitch_track}` | Pitch view needs them; one request shows every stage when debugging (~150 KB) |
 | Frontend **always sends WAV** | Browsers record WebM/MP4; librosa needs ffmpeg for those. Converting in the browser (Web Audio API) means one format and no ffmpeg on anyone's laptop. |
-| Error shape `{"error": {code, message, stage}}`; 400 / 422 / 500 | One shape to handle; `stage` tells you whose code failed. Raise `AnalysisError` from `app.main`. |
+| Error shape `{"error": {code, message, stage}}`; 400 / 422 / 500 | One shape to handle; `stage` tells you whose code failed. Raise `AnalysisError` from `app.errors` (own module: `main` imports the stages, so importing from `main` would be circular). |
 | `/feedback` always returns 200, falls back to rules | The demo survives Wi-Fi or API failure |
 | Claude API, model `claude-opus-5-5`, low effort, structured output | The team chose Claude. Structured output guarantees the feedback JSON shape, so only the "bars exist" check remains. Switch to a faster model only if latency is a real problem. |
 | Key in `backend/.env` (`ANTHROPIC_API_KEY`), loaded by `python-dotenv` in `main.py` | Never committed; `.env.example` documents it |
@@ -181,7 +191,7 @@ few rest frames as voiced (conf ≈ 0.01, ~1% loudness). Stage 3's confidence cu
 
 ### 4.6 Still open (don't decide these on your own)
 
-- Who is A, B, C; who makes the call on cuts.
+- Who makes the call on cuts.
 - Demo pieces (one teammate is working on it). Criteria: slow, no repeats, few repeated same-pitch notes.
 - Real recordings of the demo piece (sung well + with deliberate mistakes).
 
@@ -201,7 +211,7 @@ few rest frames as voiced (conf ≈ 0.01, ~1% loudness). Stage 3's confidence cu
 
 6. Stay in your stage's file(s). Shared files (`main.py`, `requirements.txt`, `package.json`, `vite.config.ts`) get small, explained edits.
 7. Keep stage functions pure-ish: dict in, dict out (contract-shaped). File I/O and HTTP stay in `main.py`.
-8. Raise `AnalysisError(code, message, stage, status)` for user-facing failures in `/analyze`. `/feedback` must never error; it falls back.
+8. Raise `AnalysisError(code, message, stage, status)` (`from app.errors import AnalysisError`) for user-facing failures in `/analyze`. `/feedback` must never error; it falls back.
 9. Adding a Python dependency: pin it in `backend/requirements.txt` and tell the user to re-run `npm run setup:backend`.
 10. Keep it simple; this is a 24-hour hackathon. Prefer the straightforward version that works over the general one.
 
@@ -258,18 +268,20 @@ Anthropic SDK docs before writing the API call; don't guess SDK signatures.
 **Stage 7, frontend (A)**: Setup screen (upload MusicXML, mode/tempo/preset, or upload a recording), Record screen
 (one-bar count-in, click via Web Audio API, MediaRecorder for the mic, headphones; send the exact `countin_end_sec`),
 Results screen (colored score, score card, coach panel with clickable tips → highlight bars, optional pitch view).
-Convert all audio to WAV before upload. **First task before any audio exists:** color every note from
+Convert all audio to WAV before upload. Note IDs: copy `collectNoteIds()` from `tools/check_osmd_ids.mjs`
+(already verified against stage 1; see DECISIONS.md section 3). **First task before any audio exists:** color every note from
 `contracts/results.sample.json` (loaded with `samples/c-major-scale/score.musicxml`) and check each color and marker
 lands on the right notehead. `api.ts` currently types responses as `any`; tighten to the contract shapes when convenient.
 
 **Wiring (B)**: replace the stub bodies in `main.py` with the real calls (the TODO lists the order), saving
 uploads to `backend/tmp/` (gitignored).
 
-### Nice-to-haves (only after the core works end to end), in priority order
+### Nice-to-haves (only after the core works end to end)
 
-Click a note to hear it → pitch view → beginner/advanced presets → repeats (unfold with music21
-`expandRepeats()`) → playback highlight → "ask the coach" → retry a bar → any-key transposition →
-lyrics/tone/breath analysis → OMR for PDFs/photos.
+Full list with details and owners: [`docs/NICE_TO_HAVE.md`](docs/NICE_TO_HAVE.md). In priority order:
+click a note to hear it → pitch view → beginner/advanced presets → repeats → playback highlight →
+"ask the coach" → retry a bar → any-key transposition → lyrics/tone/breath analysis → OMR for
+PDFs/photos. Not yet ranked: choosing which part to sing (today: first part only).
 
 **If behind, cut in this order:** retry-a-bar, ask-the-coach, playback highlight → pitch view →
 free tempo mode → the LLM call (fallback covers it) → in-app recording (upload only).
@@ -284,6 +296,8 @@ free tempo mode → the LLM call (fallback covers it) → in-app recording (uplo
 - **Browser audio isn't WAV.** Convert in the frontend.
 - **Pickup bars are printed as 0** in MusicXML (`number="0" implicit="yes"`). Count by file position.
 - **OSMD draws grace notes**; the frontend's ID counter must skip them.
+- **OSMD merges empty bars into one multi-bar rest by default**, leaving those rests without a notehead. Set
+  `autoGenerateMultipleRestMeasuresFromRestMeasures: false`. Counting recipe: DECISIONS.md section 3, "How the frontend counts".
 - **Recording latency** (50–150 ms) makes everything look late in strict mode; stage 5 subtracts the median offset. The `delayed` take tests this.
 - **Vibrato shifts measured pitch slightly** (planted −35 cents reads ≈ −31). Thresholds shouldn't sit right at a planted value.
 - **Noise frames can be marked voiced** with near-zero confidence (see `octave-down`). Filter by `conf`.
