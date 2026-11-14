@@ -1,0 +1,166 @@
+{
+  "meta": {
+    "title": "C Major Scale (test)",
+    "mode": "strict",
+    "preset": "default",
+    "tempo_bpm": 80,
+    "octave_shift": 0,
+    "timing_offset_ms": 20
+  },
+  "score": {
+    "total": 77,
+    "pitch": 75,
+    "intonation": 86,
+    "rhythm": 71,
+    "completeness": 83
+  },
+  "counts": {
+    "notes": 8,
+    "in_tune": 5,
+    "out_of_tune": 1,
+    "wrong_note": 1,
+    "skipped": 1,
+    "extra": 1,
+    "early": 1,
+    "late": 1,
+    "uncertain": 0
+  },
+  "notes": [
+    {
+      "id": "m1-n0",
+      "measure": 1,
+      "name": "C4",
+      "lyric": null,
+      "status": "in_tune",
+      "cents": 1,
+      "sang": "C4",
+      "timing": "on_time",
+      "timing_ms": 0,
+      "sung_start_sec": 0.02,
+      "sung_end_sec": 0.69,
+      "uncertain": false
+    },
+    {
+      "id": "m1-n1",
+      "measure": 1,
+      "name": "D4",
+      "lyric": null,
+      "status": "wrong_note",
+      "cents": 302,
+      "sang": "F4",
+      "timing": "on_time",
+      "timing_ms": 0,
+      "sung_start_sec": 0.77,
+      "sung_end_sec": 1.44,
+      "uncertain": false
+    },
+    {
+      "id": "m1-n2",
+      "measure": 1,
+      "name": "E4",
+      "lyric": null,
+      "status": "out_of_tune",
+      "cents": -34,
+      "sang": "E4",
+      "timing": "on_time",
+      "timing_ms": 0,
+      "sung_start_sec": 1.52,
+      "sung_end_sec": 2.19,
+      "uncertain": false
+    },
+    {
+      "id": "m1-n3",
+      "measure": 1,
+      "name": "F4",
+      "lyric": null,
+      "status": "in_tune",
+      "cents": -2,
+      "sang": "F4",
+      "timing": "on_time",
+      "timing_ms": 0,
+      "sung_start_sec": 2.27,
+      "sung_end_sec": 2.94,
+      "uncertain": false
+    },
+    {
+      "id": "m2-n0",
+      "measure": 2,
+      "name": "G4",
+      "lyric": null,
+      "status": "in_tune",
+      "cents": 1,
+      "sang": "G4",
+      "timing": "late",
+      "timing_ms": 200,
+      "sung_start_sec": 3.22,
+      "sung_end_sec": 3.49,
+      "uncertain": false
+    },
+    {
+      "id": "m2-n1",
+      "measure": 2,
+      "name": "A4",
+      "lyric": null,
+      "status": "in_tune",
+      "cents": -1,
+      "sang": "A4",
+      "timing": "early",
+      "timing_ms": -200,
+      "sung_start_sec": 3.57,
+      "sung_end_sec": 4.44,
+      "uncertain": false
+    },
+    {
+      "id": "m2-n2",
+      "measure": 2,
+      "name": "B4",
+      "lyric": null,
+      "status": "skipped",
+      "cents": null,
+      "sang": null,
+      "timing": null,
+      "timing_ms": null,
+      "sung_start_sec": null,
+      "sung_end_sec": null,
+      "uncertain": false
+    },
+    {
+      "id": "m2-n3",
+      "measure": 2,
+      "name": "C5",
+      "lyric": null,
+      "status": "in_tune",
+      "cents": 2,
+      "sang": "C5",
+      "timing": "on_time",
+      "timing_ms": 0,
+      "sung_start_sec": 5.27,
+      "sung_end_sec": 5.94,
+      "uncertain": false
+    }
+  ],
+  "extras": [
+    {
+      "sid": "s7",
+      "near_id": "m2-n3",
+      "sang": "E5",
+      "during_rest": false,
+      "start_sec": 6.32,
+      "end_sec": 6.6
+    }
+  ],
+  "patterns": {
+    "worst_measures": [
+      2,
+      1
+    ],
+    "drift_cents": {
+      "first_third": -17,
+      "last_third": 1
+    },
+    "high_notes_flat": false,
+    "timing_tendency": "steady",
+    "shaky_long_notes": [],
+    "errors_after_leaps": []
+  }
+}

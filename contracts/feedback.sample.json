@@ -1,0 +1,25 @@
+{
+  "source": "llm",
+  "summary": "Good start: 6 of 8 notes landed on the right pitch.",
+  "strengths": [
+    "F4, G4 and the top C5 were right in tune"
+  ],
+  "tips": [
+    {
+      "title": "Bar 1: D came out as F",
+      "explanation": "You jumped to F4 where the score has D4, then sang E4 about a third of a semitone flat.",
+      "exercise": "Sing C–D–E slowly on 'la' against a piano, pausing on each note to check it.",
+      "measures": [
+        1
+      ]
+    },
+    {
+      "title": "Bar 2: keep an even pulse",
+      "explanation": "G came in 200 ms late, A came in 200 ms early, and B was skipped.",
+      "exercise": "Clap bar 2 with the click first, then sing it at a slower tempo before going back to 80.",
+      "measures": [
+        2
+      ]
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "notes": [
+    {
+      "sid": "s0",
+      "start_sec": 0.02,
+      "end_sec": 0.69,
+      "midi": 60.01,
+      "stability_cents": 21,
+      "conf": 0.93
+    },
+    {
+      "sid": "s1",
+      "start_sec": 0.77,
+      "end_sec": 1.44,
+      "midi": 65.02,
+      "stability_cents": 21,
+      "conf": 0.93
+    },
+    {
+      "sid": "s2",
+      "start_sec": 1.52,
+      "end_sec": 2.19,
+      "midi": 63.66,
+      "stability_cents": 21,
+      "conf": 0.93
+    },
+    {
+      "sid": "s3",
+      "start_sec": 2.27,
+      "end_sec": 2.94,
+      "midi": 64.98,
+      "stability_cents": 21,
+      "conf": 0.93
+    },
+    {
+      "sid": "s4",
+      "start_sec": 3.22,
+      "end_sec": 3.49,
+      "midi": 67.01,
+      "stability_cents": 21,
+      "conf": 0.93
+    },
+    {
+      "sid": "s5",
+      "start_sec": 3.57,
+      "end_sec": 4.44,
+      "midi": 68.99,
+      "stability_cents": 21,
+      "conf": 0.93
+    },
+    {
+      "sid": "s6",
+      "start_sec": 5.27,
+      "end_sec": 5.94,
+      "midi": 72.02,
+      "stability_cents": 21,
+      "conf": 0.93
+    },
+    {
+      "sid": "s7",
+      "start_sec": 6.32,
+      "end_sec": 6.6,
+      "midi": 76.01,
+      "stability_cents": 21,
+      "conf": 0.93
+    }
+  ],
+  "params": {
+    "conf_cutoff": 0.5,
+    "min_pitch_change": 0.5,
+    "min_hold_ms": 50,
+    "min_note_ms": 80
+  }
+}

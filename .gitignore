@@ -1,0 +1,33 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Secrets (API keys for the LLM call go in backend/.env)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local scratch output from running the pipeline (uploads, intermediate JSON)
+backend/tmp/
+
+# Pure-tone debug takes (regenerate with: npm run synth -- --clean)
+samples/*/takes-clean/
