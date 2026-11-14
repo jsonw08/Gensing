@@ -4,6 +4,7 @@ export type Take = {
   id: number
   name: string // "Take 1", "Take 2", ...
   scoreName: string // file the take was sung against
+  scoreXml: string // that file's MusicXML, so the take can be evaluated after the score changes
   blob: Blob
   url: string // object URL for playback / download
   durationMs: number
@@ -16,12 +17,12 @@ export function useTakes() {
   const nextId = useRef(1)
   const urls = useRef(new Set<string>())
 
-  const add = useCallback((blob: Blob, durationMs: number, scoreName: string) => {
+  const add = useCallback((blob: Blob, durationMs: number, scoreName: string, scoreXml: string) => {
     const id = nextId.current++
     const url = URL.createObjectURL(blob)
     urls.current.add(url)
     setTakes((prev) => [
-      { id, name: `Take ${id}`, scoreName, blob, url, durationMs, savedAt: new Date() },
+      { id, name: `Take ${id}`, scoreName, scoreXml, blob, url, durationMs, savedAt: new Date() },
       ...prev, // newest first
     ])
   }, [])

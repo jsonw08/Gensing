@@ -40,7 +40,12 @@ export async function analyze(musicxml: File, audio: Blob, settings: AnalyzeSett
   return res.json()
 }
 
-export async function feedback(results: unknown) {
+// feedback.json (stage 6), docs/DECISIONS.md section 4.6. /feedback always returns 200: on any LLM
+// failure the backend sends the rule-based fallback in the same shape.
+export type FeedbackTip = { title: string; explanation: string; exercise: string; measures: number[] }
+export type Feedback = { source: 'llm' | 'fallback'; summary: string; strengths: string[]; tips: FeedbackTip[] }
+
+export async function feedback(results: unknown): Promise<Feedback> {
   const res = await fetch('/api/feedback', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -49,3 +54,10 @@ export async function feedback(results: unknown) {
   if (!res.ok) throw new Error(`/feedback failed: ${res.status}`)
   return res.json()
 }
+
+// ---------------------------------------------------------------------------------------------------
+// TEMP placeholders: endpoints the frontend needs that the backend doesn't have yet. `null` = not
+// connected; the UI shows a "not connected yet" note instead of calling anything.
+
+/** Analyze a take (stages 1-5). Will become '/api/analyze' once WAV conversion is in. */
+export const EVALUATE_ENDPOINT: string | null = null

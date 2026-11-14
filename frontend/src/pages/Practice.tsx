@@ -2,11 +2,9 @@ import { useRef, useState } from 'react'
 import { BlurredSheet } from '../components/BlurredSheet'
 import { ScoreView } from '../components/ScoreView'
 import { useRecorder } from '../hooks/useRecorder'
-import { type Take, useTakes } from '../hooks/useTakes'
+import type { Take, useTakes } from '../hooks/useTakes'
 
-// TEMP: placeholder until the FastAPI evaluate endpoint exists. Swap in the real path
-// (e.g. '/api/analyze' via lib/api.ts) once it's wired up.
-const EVALUATE_ENDPOINT: string | null = null
+export type Score = { file: File; xml: string }
 
 function formatTime(ms: number): string {
   const total = Math.floor(ms / 1000)
@@ -15,37 +13,35 @@ function formatTime(ms: number): string {
   return `${m}:${s}.${Math.floor((ms % 1000) / 100)}`
 }
 
-export function Practice({ onBack }: { onBack: () => void }) {
-  const [scoreFile, setScoreFile] = useState<File | null>(null)
-  const [scoreXml, setScoreXml] = useState<string | null>(null)
+// Score and saved takes live in App, so they survive a trip to the Evaluate page and back.
+export function Practice({
+  score,
+  onScoreChange,
+  takes,
+  onEvaluate,
+  onBack,
+}: {
+  score: Score | null
+  onScoreChange: (score: Score) => void
+  takes: ReturnType<typeof useTakes>
+  onEvaluate: (take: Take) => void
+  onBack: () => void
+}) {
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const rec = useRecorder()
-  const takes = useTakes()
-
-  // Take ids the user has asked to evaluate (shows a note under the row until the endpoint exists).
-  const [evaluateRequested, setEvaluateRequested] = useState<Set<number>>(new Set())
-
-  function evaluateTake(take: Take) {
-    if (!EVALUATE_ENDPOINT) {
-      console.info('[evaluate] no endpoint yet; would send', take.name, take.blob)
-      setEvaluateRequested((prev) => new Set(prev).add(take.id))
-      return
-    }
-    // TODO: POST the take (as WAV) + score to EVALUATE_ENDPOINT and show the results.
-  }
+  const scoreXml = score?.xml ?? null
 
   function saveTake() {
-    if (!rec.blob || !scoreFile) return
-    takes.add(rec.blob, rec.elapsedMs, scoreFile.name)
+    if (!rec.blob || !score) return
+    takes.add(rec.blob, rec.elapsedMs, score.file.name, score.xml)
     rec.reset() // ready for the next take
   }
 
   async function chooseFile(file: File | undefined) {
     if (!file) return
     rec.reset() // a take belongs to one score
-    setScoreFile(file)
-    setScoreXml(await file.text())
+    onScoreChange({ file, xml: await file.text() })
   }
 
   const busy = rec.status === 'recording'
@@ -87,7 +83,7 @@ export function Practice({ onBack }: { onBack: () => void }) {
           {scoreXml ? (
             <>
               <div className="file-bar">
-                <span className="file-name">{scoreFile?.name}</span>
+                <span className="file-name">{score?.file.name}</span>
                 <button className="btn btn-ghost btn-sm" onClick={() => inputRef.current?.click()} disabled={busy}>
                   Change file
                 </button>
@@ -131,14 +127,14 @@ export function Practice({ onBack }: { onBack: () => void }) {
                   ■ Stop
                 </button>
               )}
-              {rec.status !== 'idle' && (
-                <button className="btn btn-ghost" onClick={rec.restart}>
-                  ↺ Restart
-                </button>
-              )}
               {rec.status === 'stopped' && (
                 <button className="btn btn-primary" onClick={saveTake} title="Keep this take">
                   ✓ Save take
+                </button>
+              )}
+              {rec.status !== 'idle' && (
+                <button className="btn btn-ghost" onClick={rec.restart}>
+                  ↺ Restart
                 </button>
               )}
             </div>
@@ -164,16 +160,13 @@ export function Practice({ onBack }: { onBack: () => void }) {
                     </div>
                     <audio controls src={t.url} />
                     <div className="take-actions">
-                      <button className="btn btn-primary btn-sm" onClick={() => evaluateTake(t)}>
+                      <button className="btn btn-primary btn-sm" onClick={() => onEvaluate(t)}>
                         Evaluate
                       </button>
                       <button className="btn btn-ghost btn-sm" onClick={() => takes.remove(t)}>
                         Delete
                       </button>
                     </div>
-                    {evaluateRequested.has(t.id) && (
-                      <p className="take-note">Evaluation isn't connected yet (no endpoint).</p>
-                    )}
                   </li>
                 ))}
               </ul>
