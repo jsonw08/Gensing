@@ -16,6 +16,8 @@ from fastapi import Body, FastAPI, File, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.errors import AnalysisError  # stages raise it; defined in app/errors.py to avoid a circular import
+
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 CONTRACTS_DIR = BACKEND_DIR.parent / "contracts"
 
@@ -29,19 +31,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-class AnalysisError(Exception):
-    """Raise from any stage to return a clean error to the frontend.
-
-    code:   invalid_musicxml | invalid_audio | no_voice_detected | internal_error
-    stage:  score | pitch | segment | align | grade | feedback
-    status: 400 bad input, 422 input fine but can't analyze, 500 our bug
-    """
-
-    def __init__(self, code: str, message: str, stage: str, status: int = 422):
-        super().__init__(message)
-        self.code, self.message, self.stage, self.status = code, message, stage, status
 
 
 @app.exception_handler(AnalysisError)
