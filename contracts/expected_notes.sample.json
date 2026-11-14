@@ -1,0 +1,135 @@
+{
+  "title": "C Major Scale (test)",
+  "tempo_bpm": 80,
+  "beat_unit": "quarter",
+  "notes": [
+    {
+      "id": "m1-n0",
+      "measure": 1,
+      "index": 0,
+      "is_rest": false,
+      "midi": 60,
+      "name": "C4",
+      "onset_beats": 0.0,
+      "duration_beats": 1.0,
+      "onset_sec": 0.0,
+      "duration_sec": 0.75,
+      "lyric": null,
+      "render_ids": [
+        "m1-n0"
+      ]
+    },
+    {
+      "id": "m1-n1",
+      "measure": 1,
+      "index": 1,
+      "is_rest": false,
+      "midi": 62,
+      "name": "D4",
+      "onset_beats": 1.0,
+      "duration_beats": 1.0,
+      "onset_sec": 0.75,
+      "duration_sec": 0.75,
+      "lyric": null,
+      "render_ids": [
+        "m1-n1"
+      ]
+    },
+    {
+      "id": "m1-n2",
+      "measure": 1,
+      "index": 2,
+      "is_rest": false,
+      "midi": 64,
+      "name": "E4",
+      "onset_beats": 2.0,
+      "duration_beats": 1.0,
+      "onset_sec": 1.5,
+      "duration_sec": 0.75,
+      "lyric": null,
+      "render_ids": [
+        "m1-n2"
+      ]
+    },
+    {
+      "id": "m1-n3",
+      "measure": 1,
+      "index": 3,
+      "is_rest": false,
+      "midi": 65,
+      "name": "F4",
+      "onset_beats": 3.0,
+      "duration_beats": 1.0,
+      "onset_sec": 2.25,
+      "duration_sec": 0.75,
+      "lyric": null,
+      "render_ids": [
+        "m1-n3"
+      ]
+    },
+    {
+      "id": "m2-n0",
+      "measure": 2,
+      "index": 0,
+      "is_rest": false,
+      "midi": 67,
+      "name": "G4",
+      "onset_beats": 4.0,
+      "duration_beats": 1.0,
+      "onset_sec": 3.0,
+      "duration_sec": 0.75,
+      "lyric": null,
+      "render_ids": [
+        "m2-n0"
+      ]
+    },
+    {
+      "id": "m2-n1",
+      "measure": 2,
+      "index": 1,
+      "is_rest": false,
+      "midi": 69,
+      "name": "A4",
+      "onset_beats": 5.0,
+      "duration_beats": 1.0,
+      "onset_sec": 3.75,
+      "duration_sec": 0.75,
+      "lyric": null,
+      "render_ids": [
+        "m2-n1"
+      ]
+    },
+    {
+      "id": "m2-n2",
+      "measure": 2,
+      "index": 2,
+      "is_rest": false,
+      "midi": 71,
+      "name": "B4",
+      "onset_beats": 6.0,
+      "duration_beats": 1.0,
+      "onset_sec": 4.5,
+      "duration_sec": 0.75,
+      "lyric": null,
+      "render_ids": [
+        "m2-n2"
+      ]
+    },
+    {
+      "id": "m2-n3",
+      "measure": 2,
+      "index": 3,
+      "is_rest": false,
+      "midi": 72,
+      "name": "C5",
+      "onset_beats": 7.0,
+      "duration_beats": 1.0,
+      "onset_sec": 5.25,
+      "duration_sec": 0.75,
+      "lyric": null,
+      "render_ids": [
+        "m2-n3"
+      ]
+    }
+  ]
+}

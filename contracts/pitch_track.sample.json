@@ -1,0 +1,57 @@
+{
+  "_comment": "Truncated to the first 8 frames for readability; a real file has one entry per 10 ms for the whole recording.",
+  "sample_rate": 16000,
+  "hop_sec": 0.01,
+  "audio_offset_sec": 3.0,
+  "duration_sec": 7.0,
+  "t": [
+    0.0,
+    0.01,
+    0.02,
+    0.03,
+    0.04,
+    0.05,
+    0.06,
+    0.07
+  ],
+  "midi": [
+    null,
+    null,
+    59.62,
+    59.71,
+    59.83,
+    59.95,
+    60.02,
+    60.08
+  ],
+  "voiced": [
+    false,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "conf": [
+    0.02,
+    0.11,
+    0.81,
+    0.9,
+    0.93,
+    0.94,
+    0.95,
+    0.95
+  ],
+  "rms": [
+    0.004,
+    0.09,
+    0.22,
+    0.31,
+    0.35,
+    0.37,
+    0.38,
+    0.38
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "gensing",
+  "private": true,
+  "scripts": {
+    "setup": "npm install && npm run setup:backend && npm run setup:frontend",
+    "setup:backend": "cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt",
+    "setup:frontend": "npm --prefix frontend install",
+    "dev": "concurrently --kill-others-on-fail -n api,web -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "synth": "backend/.venv/bin/python tools/synth_take.py"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "piece": "c-major-scale",
+  "take": "perfect",
+  "settings": {
+    "mode": "strict",
+    "tempo_bpm": 80.0,
+    "countin_end_sec": 3.0
+  },
+  "expect": {
+    "octave_shift": 0
+  },
+  "notes": {
+    "m1-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m1-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m1-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m1-n3": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m2-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m2-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m2-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m2-n3": {
+      "status": "in_tune",
+      "timing": "on_time"
+    }
+  },
+  "extras": []
+}
