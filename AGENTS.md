@@ -81,6 +81,7 @@ backend/
   requirements.txt   pinned: fastapi, uvicorn, python-multipart, music21, librosa, numpy, anthropic, python-dotenv, pytest
   pytest.ini         test config: tests/ folder; backend/ and tools/ on the import path
   tests/             pytest unit tests (run with `npm test`)
+  tests/synth_sung.py  load_take(piece, take): perfect sung_notes + answer key per take (tests stages 4-5 without 2-3)
   tests/manual/      inspect_score.py (look at stage 1 by eye) + fixtures/; downloads/ is gitignored
   .env.example       ANTHROPIC_API_KEY= (copy to backend/.env, which is gitignored)
   app/main.py        FastAPI: /health, /analyze, /feedback, AnalysisError handler
