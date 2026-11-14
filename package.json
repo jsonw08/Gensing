@@ -8,7 +8,8 @@
     "dev": "concurrently --kill-others-on-fail -n api,web -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:backend": "cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000",
     "dev:frontend": "npm --prefix frontend run dev",
-    "synth": "backend/.venv/bin/python tools/synth_take.py"
+    "synth": "backend/.venv/bin/python tools/synth_take.py",
+    "test": "cd backend && .venv/bin/python -m pytest"
   },
   "devDependencies": {
     "concurrently": "^10.0.7"

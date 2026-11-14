@@ -31,7 +31,9 @@ Each arrow is a JSON file. Stages 1 and 2–3 don't depend on each other; they m
 | 6 | LLM feedback + fallback | `results` → `feedback` | B | `backend/app/stages/feedback.py` |
 | 7 | Frontend: record, draw, color | everything → the app | A | `frontend/` |
 
-B also owns the API endpoints (`backend/app/main.py`). Who is A, B and C is still open.
+B also owns the API endpoints (`backend/app/main.py`).
+
+**Who:** A = Jason, B = Jonathan, C = Mehul.
 
 ---
 
@@ -44,6 +46,7 @@ B also owns the API endpoints (`backend/app/main.py`). Who is A, B and C is stil
 | LLM | Claude API (`anthropic` Python SDK) |
 | Run | `npm run setup` once, then `npm run dev` from the repo root (both servers, one terminal) |
 | Test audio | `npm run synth` (generated recordings + answer keys, see section 7) |
+| Tests | pytest in `backend/tests/`; run `npm test` from the repo root |
 
 Everyone is on macOS. Frontend calls `/api/*`; Vite proxies to the backend on port 8000.
 
@@ -328,7 +331,6 @@ Known quirk: in `octave-down`, pYIN marks a few noise frames during rests as voi
 
 ## 8. Still open
 
-- **Roles:** who is A, B, C.
 - **Decision maker** for cuts when time runs short.
 - **Demo pieces:** 1–2 real pieces (slow, no repeats, few repeated same-pitch notes) + real recordings of them sung well and with deliberate mistakes.
 

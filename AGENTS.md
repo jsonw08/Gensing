@@ -4,7 +4,7 @@ This file is for any AI model (Claude, GPT, Gemini, Copilot, Cursor, ...) helpin
 It explains what the project is, what has been built, every decision made so far **and why**, and
 what is expected next. Read it fully before changing anything.
 
-Last updated: 2026-11-14 (initial setup, before any real pipeline code).
+Last updated: 2026-11-14 (roles assigned, pytest added; before any real pipeline code).
 
 ---
 
@@ -58,13 +58,13 @@ MusicXML (drawn separately in the browser by OSMD) ─────────�
 
 ### Owners
 
-| Role | Stages | Owns |
-|---|---|---|
-| A: Frontend | 7 + in-app recording | `frontend/` |
-| B: Audio + server | 2, 3, 6 + API | `pitch.py`, `segment.py`, `feedback.py`, `main.py` |
-| C: Music logic | 1, 4, 5 | `score.py`, `align.py`, `grade.py` |
+| Role | Person | Stages | Owns |
+|---|---|---|---|
+| A: Frontend | Jason | 7 + in-app recording | `frontend/` |
+| B: Audio + server | Jonathan | 2, 3, 6 + API | `pitch.py`, `segment.py`, `feedback.py`, `main.py` |
+| C: Music logic | Mehul | 1, 4, 5 | `score.py`, `align.py`, `grade.py` |
 
-Which person is A, B or C is not decided yet. When you work on a stage, stay inside its files
+When you work on a stage, stay inside its files
 unless the task requires otherwise, and say so when you touch someone else's.
 
 ---
@@ -77,7 +77,9 @@ CLAUDE.md            points Claude Code at this file
 README.md            human quickstart
 package.json         root scripts: setup / dev / synth (uses `concurrently`)
 backend/
-  requirements.txt   pinned: fastapi, uvicorn, python-multipart, music21, librosa, numpy, anthropic, python-dotenv
+  requirements.txt   pinned: fastapi, uvicorn, python-multipart, music21, librosa, numpy, anthropic, python-dotenv, pytest
+  pytest.ini         test config: tests/ folder; backend/ and tools/ on the import path
+  tests/             pytest unit tests (run with `npm test`)
   .env.example       ANTHROPIC_API_KEY= (copy to backend/.env, which is gitignored)
   app/main.py        FastAPI: /health, /analyze, /feedback, AnalysisError + handler
   app/stages/        score.py pitch.py segment.py align.py grade.py feedback.py (stubs)
@@ -94,6 +96,7 @@ docs/                DECISIONS.md + the two design PDFs
 | `npm run dev` | backend (:8000, reload) + frontend (:5173) in one terminal, logs prefixed `[api]` / `[web]` |
 | `npm run dev:backend` / `npm run dev:frontend` | one side only |
 | `npm run setup:backend` | re-run after `requirements.txt` changes |
+| `npm test` | run the backend unit tests (pytest; extra args: `npm test -- -k score`) |
 | `npm run synth` | regenerate all test takes (`-- --clean` for pure tones into `takes-clean/`) |
 | `cd frontend && npm run build && npm run lint` | type-check, build, lint (oxlint) |
 
@@ -181,7 +184,7 @@ few rest frames as voiced (conf ≈ 0.01, ~1% loudness). Stage 3's confidence cu
 
 ### 4.6 Still open (don't decide these on your own)
 
-- Who is A, B, C; who makes the call on cuts.
+- Who makes the call on cuts.
 - Demo pieces (one teammate is working on it). Criteria: slow, no repeats, few repeated same-pitch notes.
 - Real recordings of the demo piece (sung well + with deliberate mistakes).
 
