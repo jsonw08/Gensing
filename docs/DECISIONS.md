@@ -354,7 +354,7 @@ Multipart form:
 | `mode` | `strict` \| `free` | default `free` (the main mode) |
 | `tempo_bpm` | number, optional | missing = the score's marking. Given: every tempo mark is scaled by the same factor so the first one becomes this (80 → 120 later becomes 120 → 180). Must be > 0 (validate in the endpoint: `Form(None, gt=0)`). |
 | `preset` | `default` \| `beginner` \| `advanced` | default `default` |
-| `countin_end_sec` | number | where beat 1 is in the recording; 0 for uploads |
+| `countin_end_sec` | number | where beat 1 is in the recording; 0 for uploads, and for in-app takes once the frontend has cut the count-in off (it does on stop) |
 
 Response: `{"results": …, "expected_notes": …, "sung_notes": …, "pitch_track": …}`. The pitch
 view needs the last three, and it makes debugging easy. `alignment` isn't returned; everything

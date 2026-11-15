@@ -7,7 +7,9 @@ import { ScoreView } from '../components/ScoreView'
 import { useRecorder } from '../hooks/useRecorder'
 import type { Take, useTakes } from '../hooks/useTakes'
 import { audioDurationMs, isPlayableAudio } from '../lib/audio'
+import { audioContext } from '../lib/metronome'
 import { countInFor, DEFAULT_TEMPO_BPM, readScoreTiming, readScoreTitle } from '../lib/scoreInfo'
+import { playNote, preloadNote, readStartNote } from '../lib/startNote'
 
 export type Score = { file: File; xml: string }
 
@@ -48,6 +50,15 @@ export function Practice({
   const [tempoText, setTempoText] = useState(String(tempo))
   const countIn = timing ? countInFor(timing, tempo) : undefined
   const busy = rec.status === 'countin' || rec.status === 'recording'
+
+  // The first sung note, played on a piano so the singer can find the key before the count-in.
+  const startNote = useMemo(() => (scoreXml ? readStartNote(scoreXml) : null), [scoreXml])
+  useEffect(() => {
+    if (startNote) preloadNote(startNote.midi) // download its recording now, so the first press plays at once
+  }, [startNote])
+  const playStartNote = () => {
+    if (startNote && !busy) playNote(audioContext(), startNote.midi) // audioContext() resumes inside the click
+  }
 
   // Turn the mic on as soon as there's a score to sing, so it's settled before the first count-in.
   const { warmMic } = rec
@@ -124,6 +135,8 @@ export function Practice({
     {
       label: 'Take',
       items: [
+        { label: 'Play starting note', onSelect: playStartNote, disabled: !startNote || busy },
+        'separator',
         { label: 'Record', onSelect: record, disabled: !score || rec.status !== 'idle' },
         { label: 'Stop', onSelect: rec.stop, disabled: !busy },
         { label: 'Save take', onSelect: saveTake, disabled: rec.status !== 'stopped' },
@@ -276,6 +289,17 @@ export function Practice({
             {rec.status !== 'idle' && (
               <button type="button" className="button" onClick={startOver}>
                 Start over
+              </button>
+            )}
+            {startNote && (
+              <button
+                type="button"
+                className="button"
+                onClick={playStartNote}
+                disabled={busy}
+                title="Play the first note of the score on a piano"
+              >
+                ♪ Starting note: {startNote.name}
               </button>
             )}
           </div>

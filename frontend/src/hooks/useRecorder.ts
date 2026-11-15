@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { audioContext, audioTimeToPerf, heardAudioTime, scheduleClicks, warmUp } from '../lib/metronome'
+import { trimStartToWav } from '../lib/wav'
 
 export type RecorderStatus = 'idle' | 'countin' | 'recording' | 'stopped'
 
@@ -12,9 +13,11 @@ const CLICK_LEAD_SEC = 0.25 // schedule the first click this far ahead
 
 // Microphone recorder with a count-in, stop and restart, built on MediaRecorder.
 //
-// The mic starts BEFORE the count-in, so the recording begins with the clicks and `countinEndSec` says
-// where beat 1 is in it (sent to /analyze as countin_end_sec; stage 5 also removes the remaining
-// latency offset). Output is whatever the browser records (WebM/MP4); WAV conversion comes later.
+// The mic starts BEFORE the count-in (starting it at beat 1 would add the browser's variable start-up
+// delay), so the raw recording begins with the clicks. When it stops, everything before beat 1 is cut off
+// and the take is saved as a WAV that starts at beat 1: no clicks on playback, and `countinEndSec` is 0.
+// If cutting fails, the raw recording (WebM/MP4) is kept and `countinEndSec` says where beat 1 is in it
+// (sent to /analyze as countin_end_sec, which trims it there; stage 5 also removes the remaining latency).
 //
 // The count-in runs on the AUDIO clock: the on-screen beat and the switch to "recording" are read from
 // the same clock the clicks are played on, and scheduled clicks are never cut off at beat 1. (Driving
@@ -97,12 +100,26 @@ export function useRecorder() {
         const { stream, fresh } = await openMic()
         const rec = new MediaRecorder(stream)
         const chunks: Blob[] = []
+        let beatOneSec = 0 // where beat 1 is in this recording; 0 until the count-in is over
         rec.ondataavailable = (e) => {
           if (e.data.size > 0) chunks.push(e.data)
         }
-        rec.onstop = () => {
+        rec.onstop = async () => {
           if (recRef.current !== rec) return // discarded (restart / reset / unmount)
-          setTake(new Blob(chunks, { type: rec.mimeType }))
+          const raw = new Blob(chunks, { type: rec.mimeType })
+          let take: Blob = raw
+          let cut = beatOneSec
+          if (beatOneSec > 0) {
+            try {
+              take = await trimStartToWav(raw, beatOneSec) // drop the count-in clicks
+              cut = 0
+            } catch (err) {
+              console.warn('[recorder] could not cut off the count-in; keeping the full recording', err)
+            }
+          }
+          if (recRef.current !== rec) return // discarded while cutting
+          setCountinEndSec(cut)
+          setTake(take)
           setStatus('stopped')
         }
         recRef.current = rec
@@ -111,7 +128,8 @@ export function useRecorder() {
 
         const beginSinging = (atPerf: number) => {
           beatOneAtRef.current = atPerf
-          setCountinEndSec(Math.max(0, (atPerf - recStartedAt) / 1000))
+          beatOneSec = Math.max(0, (atPerf - recStartedAt) / 1000)
+          setCountinEndSec(beatOneSec)
           setCountInBeat(0)
           setStatus('recording')
         }
