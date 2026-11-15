@@ -11,7 +11,7 @@ from app.stages.align import align
 from app.stages.score import parse_score
 
 REPO = Path(__file__).resolve().parents[2]
-NAMES = {"C4": 60, "C#4": 61, "D4": 62, "D#4": 63, "E4": 64, "F4": 65, "G4": 67, "A4": 69, "C6": 84}
+NAMES = {"C4": 60, "C#4": 61, "D4": 62, "D#4": 63, "E4": 64, "F4": 65, "G4": 67, "A4": 69, "B4": 71, "C5": 72, "C6": 84}
 
 
 # --------------------------------------------------------------------------- tiny builders (60 BPM: 1 beat = 1 s)
@@ -417,6 +417,59 @@ def test_split_flat_note_in_mistakes_take(piece):
     flat_id = next(i for i, v in answer["notes"].items() if v["status"] == "out_of_tune")
     assert len(by_id(result)[flat_id]["sids"]) == 2
     assert [p["near_id"] for p in result["pairs"] if p["type"] == "extra"] == [e["near_id"] for e in answer["extras"]]
+
+
+def test_split_wrong_note_merges_even_if_closer_to_the_next_written_note():
+    # Written C4 D4 E4; D4 sung as F4, cut in two. The second F4 half is closer to the next written note
+    # (E4) than to D4, but it's at the same pitch as the half before it: the same sung note.
+    sung_notes = notes_at((60, 0.0, 0.8), (65, 1.0, 1.35), (65, 1.37, 1.8), (64, 2.0, 2.8))
+    result = align(written("C4", "D4", "E4"), sung_notes)
+    assert summary(result) == [("match", "m1-n0", ["s0"]), ("match", "m1-n1", ["s1", "s2"]),
+                               ("match", "m1-n2", ["s3"])]
+
+
+def test_wrong_note_a_semitone_from_the_next_sung_note_is_not_taken_for_a_piece():
+    # Written G4 G4 A4 B4 C5; the first G4 cut in two, A4 sung as C5 (a semitone from the B4 after it).
+    # Priced as a cheap piece, the C5 let the table shift every pairing by one (the G4's second half
+    # became the second G4, the real second G4 became "A4, wrong note", ...).
+    sung_notes = notes_at((67, 0.0, 0.35), (67, 0.37, 0.8), (67, 1.0, 1.8), (72, 2.0, 2.8), (71, 2.86, 3.8),
+                          (72, 4.0, 4.8))
+    result = align(written("G4", "G4", "A4", "B4", "C5"), sung_notes)
+    assert summary(result) == [("match", "m1-n0", ["s0", "s1"]), ("match", "m1-n1", ["s2"]),
+                               ("match", "m1-n2", ["s3"]), ("match", "m1-n3", ["s4"]), ("match", "m1-n4", ["s5"])]
+
+
+# Split positions in the mistakes takes stage 4 still gets wrong (DECISIONS.md section 9): a half next to
+# the planted skip is taken for the skipped note sung wrong (c-major 5, 6; edge-cases 11), and a split
+# extra stays two extras (c-major 7, edge-cases 7).
+KNOWN_SPLIT_LIMITS = {("c-major-scale", 5), ("c-major-scale", 6), ("c-major-scale", 7), ("edge-cases", 7),
+                      ("edge-cases", 11)}
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_every_split_position_in_the_mistakes_take(piece):
+    # Each note of the mistakes take cut in two, one at a time: every written note is still paired with
+    # what was sung for it (the planted wrong note included) and the planted skip and extra are found.
+    expected = parse_score(score_path(piece))
+    for pos in range(len(synth_notes(piece, "mistakes"))):
+        if (piece, pos) in KNOWN_SPLIT_LIMITS:
+            continue
+        sung_notes, answer = load_take(piece, "mistakes", split=[pos])
+        result = align(expected, sung_notes)
+        check_invariants(expected, sung_notes, result)
+        sung_by_sid = {s["sid"]: s for s in sung_notes["notes"]}
+        written_midi = {n["id"]: n["midi"] for n in expected["notes"]}
+        for nid, want in answer["notes"].items():
+            pair = by_id(result)[nid]
+            assert (pos, nid, pair["type"]) == (pos, nid, "skipped" if want["status"] == "skipped" else "match")
+            if pair["type"] == "match":
+                pitch = round(sum(sung_by_sid[s]["midi"] for s in pair["sids"]) / len(pair["sids"]))
+                assert (pos, nid, pitch) == (pos, nid, NAMES_ALL[want["sang"]] if "sang" in want else written_midi[nid])
+        assert [p["near_id"] for p in result["pairs"] if p["type"] == "extra"] == [e["near_id"] for e in answer["extras"]]
+
+
+NAMES_ALL = {f"{n}{o}": 12 * (o + 1) + i for o in range(2, 7)
+             for i, n in enumerate(["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"])}
 
 
 @pytest.mark.parametrize("piece", PIECES)

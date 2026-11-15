@@ -51,7 +51,12 @@ MERGE_MAX_GAP_SEC = 0.2  # at most this much silence between the pieces (a delib
 # toward the next written note isn't swallowed by the previous one).
 # The table must know such a piece is cheap: priced as a full extra (3), it would rather shift every
 # later pairing by one note than pay for a wrong note + a piece. Merged afterwards, so it costs nothing.
-PIECE_EXTRA_COST = 0.5  # extra cost for a sung note that looks like a piece of its sung neighbour
+# Two kinds of piece: halves at (nearly) the same pitch are almost surely one sung note: cheap. Pieces up
+# to MERGE_PITCH_TOL apart (vibrato) are only probably one note: a wrong note sung a semitone from its
+# neighbour looks the same, and priced at 0.5 it let the table shift every later pairing by one note.
+SAME_PIECE_TOL = 0.3  # semitones: halves of one held note (each half's median is within a few cents)
+PIECE_EXTRA_COST = 0.5  # extra cost for a sung note within SAME_PIECE_TOL of a sung neighbour (short gap)
+LOOSE_PIECE_EXTRA_COST = 1.5  # ... within MERGE_PITCH_TOL only
 
 # Joined notes: the opposite stage 3 error. Written G G sung smoothly is one long sung G; the second G
 # would show as skipped. It is matched to the same sung note ("joined": true) when its neighbour is the
@@ -214,7 +219,8 @@ def _fill_and_trace(
 ):
     """Edit-distance table: cell (i, j) = cheapest way to handle the first i written and j sung notes."""
     n, m = len(written), len(sung)
-    extra_cost = [PIECE_EXTRA_COST if _looks_like_piece(sung, j) else EXTRA_COST for j in range(m)]
+    piece_cost = {"same": PIECE_EXTRA_COST, "loose": LOOSE_PIECE_EXTRA_COST, None: EXTRA_COST}
+    extra_cost = [piece_cost[_piece_kind(sung, j)] for j in range(m)]
     table = [[0.0] * (m + 1) for _ in range(n + 1)]
     move = [[None] * (m + 1) for _ in range(n + 1)]
     step = [[0.0] * (m + 1) for _ in range(n + 1)]  # cost of the winning move itself (per-pair debug cost)
@@ -257,14 +263,20 @@ def _near_id(all_notes: list[dict], sec: float) -> str:
     return min(all_notes, key=lambda n: abs(n["onset_sec"] - sec))["id"]
 
 
-def _looks_like_piece(sung: list[dict], j: int) -> bool:
-    """Sung note j is within 1 semitone of a sung neighbour with at most a short gap between them."""
+def _piece_kind(sung: list[dict], j: int) -> str | None:
+    """Does sung note j look like a piece of a sung neighbour (at most a short gap between them)?
+    "same": within SAME_PIECE_TOL; "loose": within MERGE_PITCH_TOL; None: no."""
+    best = None
     for k in (j - 1, j + 1):
         if 0 <= k < len(sung):
             a, b = (sung[k], sung[j]) if k < j else (sung[j], sung[k])
-            if b["start_sec"] - a["end_sec"] <= MERGE_MAX_GAP_SEC and abs(a["midi"] - b["midi"]) <= MERGE_PITCH_TOL:
-                return True
-    return False
+            if b["start_sec"] - a["end_sec"] <= MERGE_MAX_GAP_SEC:
+                apart = abs(a["midi"] - b["midi"])
+                if apart <= SAME_PIECE_TOL:
+                    return "same"
+                if apart <= MERGE_PITCH_TOL:
+                    best = "loose"
+    return best
 
 
 def _merge_split_notes(pairs: list[dict], written: list[dict], sung: list[dict], octave_shift: int) -> list[dict]:
@@ -278,27 +290,41 @@ def _merge_split_notes(pairs: list[dict], written: list[dict], sung: list[dict],
         for k, pair in enumerate(pairs):
             if pair["type"] != "extra":
                 continue
-            for nb in (k - 1, k + 1):
-                if 0 <= nb < len(pairs) and pairs[nb]["type"] == "match":
-                    match = pairs[nb]
-                    if _is_piece_of(sung_by_sid[pair["sids"][0]], match, sung_by_sid, written, index_of, octave_shift):
-                        match["sids"] = sorted(match["sids"] + pair["sids"], key=lambda sid: sung_by_sid[sid]["start_sec"])
-                        del pairs[k]
-                        merged = True
-                        break
+            extra = sung_by_sid[pair["sids"][0]]
+            nbs = [nb for nb in (k - 1, k + 1) if 0 <= nb < len(pairs) and pairs[nb]["type"] == "match"]
+            # nearest in pitch first: a half sung at the same pitch as the note before it belongs to that one
+            nbs.sort(key=lambda nb: abs(extra["midi"] - _nearest_piece(extra, pairs[nb], sung_by_sid)["midi"]))
+            for nb in nbs:
+                match = pairs[nb]
+                if _is_piece_of(extra, match, sung_by_sid, written, index_of, octave_shift):
+                    match["sids"] = sorted(match["sids"] + pair["sids"], key=lambda sid: sung_by_sid[sid]["start_sec"])
+                    del pairs[k]
+                    merged = True
+                    break
             if merged:
                 break
     return pairs
 
 
-def _is_piece_of(extra: dict, match: dict, sung_by_sid, written, index_of, octave_shift) -> bool:
+def _nearest_piece(extra: dict, match: dict, sung_by_sid) -> dict:
+    """The match's sung piece next to the extra: its first piece if the extra comes first, else its last."""
     pieces = [sung_by_sid[sid] for sid in match["sids"]]
-    if extra["start_sec"] < pieces[0]["start_sec"]:  # extra comes first: compare with the first piece
-        neighbour, gap = pieces[0], pieces[0]["start_sec"] - extra["end_sec"]
-    else:  # extra comes after: compare with the last piece
-        neighbour, gap = pieces[-1], extra["start_sec"] - pieces[-1]["end_sec"]
-    if gap > MERGE_MAX_GAP_SEC or abs(extra["midi"] - neighbour["midi"]) > MERGE_PITCH_TOL:
+    return pieces[0] if extra["start_sec"] < pieces[0]["start_sec"] else pieces[-1]
+
+
+def _is_piece_of(extra: dict, match: dict, sung_by_sid, written, index_of, octave_shift) -> bool:
+    neighbour = _nearest_piece(extra, match, sung_by_sid)
+    if extra["start_sec"] < neighbour["start_sec"]:
+        gap = neighbour["start_sec"] - extra["end_sec"]
+    else:
+        gap = extra["start_sec"] - neighbour["end_sec"]
+    apart = abs(extra["midi"] - neighbour["midi"])
+    if gap > MERGE_MAX_GAP_SEC or apart > MERGE_PITCH_TOL:
         return False
+    if apart <= SAME_PIECE_TOL:  # the same pitch as that piece: the same sung note, whatever was written
+        return True
+    # a few cents to a semitone off: could be a slide toward the next written note, so it joins this match
+    # only if it's no closer to the written notes either side
     k = index_of[match["id"]]
     pitch = extra["midi"] - octave_shift
     here = abs(pitch - written[k]["midi"])

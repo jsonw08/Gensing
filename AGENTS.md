@@ -4,7 +4,7 @@ This file is for any AI model (Claude, GPT, Gemini, Copilot, Cursor, ...) helpin
 It explains what the project is, what has been built, every decision made so far **and why**, and
 what is expected next. Read it fully before changing anything.
 
-Last updated: 2026-11-14 (roles assigned, pytest added; before any real pipeline code).
+Last updated: 2026-11-14 (stage 5 built: verdicts, score, patterns; stage 4 split-merge fix).
 
 ---
 
@@ -95,7 +95,7 @@ backend/
   .env.example       ANTHROPIC_API_KEY= (copy to backend/.env, which is gitignored)
   app/main.py        FastAPI: /health, /analyze, /feedback, AnalysisError handler
   app/errors.py      AnalysisError (stages import it from here, not from main)
-  app/stages/        score.py pitch.py segment.py align.py grade.py feedback.py (stubs)
+  app/stages/        score.py pitch.py segment.py align.py grade.py feedback.py (one file per stage)
 frontend/            React + Vite + TS; src/App.tsx (dev page), src/components/ScoreView.tsx (OSMD), src/lib/api.ts
 contracts/           *.sample.json for all six hand-offs + README
 samples/<piece>/     score.musicxml + takes/ (generated WAVs + answer keys)
@@ -114,7 +114,7 @@ docs/                DECISIONS.md, NICE_TO_HAVE.md, PIPELINE_NOTES.md, ALIGNMENT
 | `npm test` | run the backend unit tests (pytest; extra args: `npm test -- -k score`) |
 | `npm run check:osmd-ids [-- <name>]` | proves stage 1 IDs == OSMD's IDs and every ID has a drawn notehead (real OSMD in Node via jsdom). `--osmd-defaults` shows the multi-rest problem. |
 | `npm run inspect:score -- <name> [--bars 3-5]` | stage 1 by eye: real MusicXML bars next to `parse_score` output, plus an independent raw-XML check (no args lists names; `all` checks every file). Not a pytest test. |
-| `npm run check:takes` | every test take through the real pipeline (stages 1-4 today), strict + free, vs its answer key |
+| `npm run check:takes` | every test take through the real pipeline (stages 1-5), strict + free, vs its answer key |
 | `npm run synth` | regenerate all test takes (`-- --clean` for pure tones into `takes-clean/`) |
 | `cd frontend && npm run build && npm run lint` | type-check, build, lint (oxlint) |
 
@@ -228,7 +228,7 @@ few rest frames as voiced (conf ≈ 0.01, ~1% loudness). Stage 3's confidence cu
 
 **Verification**
 
-11. After changing stages 2–5, run every take in `samples/*/takes/` through the pipeline and compare against its `.answer.json`: `perfect` must stay all green, every planted mistake must still be caught. Automated: `npm run check:takes` (stages 1-4 today; add stage 5 verdicts when grading exists).
+11. After changing stages 2–5, run every take in `samples/*/takes/` through the pipeline and compare against its `.answer.json`: `perfect` must stay all green, every planted mistake must still be caught. Automated: `npm run check:takes` (stages 1-5).
 12. Plot before tuning: the pitch curve (stage 2) and detected notes over it (stage 3) are the main debugging tools.
 13. Frontend: run `npm run build` and `npm run lint` in `frontend/`. Check note coloring against `contracts/` samples (real IDs from `c-major-scale`).
 
@@ -266,11 +266,21 @@ drop notes <80 ms, merge same-pitch neighbors with no real break. The most fragi
 **Stage 4, alignment (C)**: `align(expected_notes, sung_notes, mode) -> alignment`. Filter out rests; detect octave
 shift (−24/−12/0/+12/+24: the shift whose pitch-only pairing costs least; DECISIONS.md 4.4); free mode: scale times to the score's length;
 edit-distance DP (reference code in `docs/ALIGNMENT_EXPLAINED.md`); split-note merge; set `near_id` on extras. First unit test:
-written C D E vs sung C E → match, skipped, match.
+written C D E vs sung C E → match, skipped, match. Split-note merge has two kinds of piece (DECISIONS.md 4.4): halves within
+0.3 semitone are one sung note (cheap, glued whatever was written, so a *wrong* note cut in two stays one note);
+pieces up to 1 semitone apart cost more, because a wrong note a semitone from its neighbour looks the same and,
+priced cheap, made the table shift every later pairing by one note.
 
-**Stage 5, grading (C)**: `grade(alignment, expected_notes, sung_notes, mode, preset) -> results`. Subtract the
-median timing offset, apply verdict rules and score weights (DECISIONS.md 4.5), compute patterns. Tune thresholds
-on the test takes.
+**Stage 5, grading (C)** (built): `grade(alignment, expected_notes, sung_notes, mode, preset) -> results`. Verdicts,
+score and patterns as in DECISIONS.md 4.5 (constants at the top of `grade.py`). Why it looks the way it does:
+- Free-mode timing uses **two** readings of the neighbours (median + line) and flags a note only if it is off from
+  both: a line alone tilted when two planted mistakes were among the last note's neighbours; a median alone lagged
+  in a long slowdown. A third reading (between the immediate neighbours) was tried and dropped: two late notes in a
+  row then excused each other.
+- `sang` is the written name unless it's a wrong note (so 50 cents off doesn't read "F4, sang F#4").
+- Low-confidence extras are drawn but cost nothing; skipped notes cost pitch and completeness.
+- `test_grading_the_contract_samples_gives_the_results_sample` keeps `contracts/` one consistent run.
+Still to tune on real recordings: the uncertain cutoff (0.5), `SHAKY_CENTS` (40; wide vibrato may cross it).
 
 **Stage 6, feedback (B)**: `generate_feedback(results) -> feedback` with Claude (see 4.3) and `rule_based_feedback(results)`
 (a few if-rules over `patterns`, ~20 minutes of work; build it first). Load the `claude-api` skill or official
