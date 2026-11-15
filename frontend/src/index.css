@@ -299,7 +299,17 @@ body {
   background: var(--surface);
 }
 .takes h3 {
-  margin: 0 0 12px;
+  margin: 0;
+}
+.takes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.takes .rec-error {
+  margin: 0 0 10px;
 }
 .takes ul {
   list-style: none;
@@ -537,4 +547,180 @@ body {
   color: var(--accent);
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+/* ---------- colored score ---------- */
+
+.score-wrap {
+  position: relative;
+}
+.score-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.mark-label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 4px;
+  padding: 1px 2px;
+}
+.mark-extra {
+  position: absolute;
+  transform: translateY(-50%);
+  color: #d6334a;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: auto;
+  cursor: help;
+}
+/* Soft glow over a note (or a run of notes): translucent gradient, multiplied so the black notes stay crisp. */
+.mark-highlight {
+  position: absolute;
+  border-radius: 6px;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+  pointer-events: auto;
+  cursor: help;
+  transition: opacity 0.1s ease;
+}
+.mark-highlight:hover {
+  opacity: 0.8;
+}
+.mark-highlight.faded {
+  opacity: 0.22;
+}
+/* In-tune notes: a very light green, so the mistakes stand out. */
+.mark-highlight.subtle {
+  opacity: 0.16;
+}
+.mark-highlight.subtle:hover {
+  opacity: 0.35;
+}
+.mark-highlight.subtle.faded {
+  opacity: 0.08;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+  color: #3a3641;
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  opacity: 0.55;
+}
+.legend-hint {
+  color: var(--muted);
+  margin-left: auto;
+}
+
+/* ---------- count-in and recording state ---------- */
+
+.tempo-row {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tempo-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.tempo-row input {
+  width: 64px;
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.tempo-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.rec-dot.countin {
+  background: #e3a21a;
+  animation: pulse 0.5s ease-in-out infinite;
+}
+
+.recorder.is-busy {
+  border-color: var(--record);
+  box-shadow: 0 0 0 2px rgba(214, 51, 74, 0.15);
+}
+
+.countin-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(250, 247, 242, 0.45);
+  pointer-events: none; /* Stop / Restart stay clickable */
+  z-index: 10;
+}
+.countin-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 40px;
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: 0 20px 60px rgba(30, 20, 60, 0.18);
+}
+.countin-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+.countin-beat {
+  font-family: Georgia, serif;
+  font-size: 96px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  animation: beat-pop 0.25s ease-out;
+}
+@keyframes beat-pop {
+  from { transform: scale(1.35); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
+}
+.countin-dots {
+  display: flex;
+  gap: 8px;
+}
+.countin-dots i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.countin-dots i.on {
+  background: var(--accent);
+}
+.countin-card.go .countin-beat {
+  font-size: 56px;
+  color: var(--record);
 }

@@ -5,10 +5,12 @@ export function FeedbackPanel({
   takeName,
   feedback,
   loading,
+  failed = false,
 }: {
   takeName: string
   feedback: Feedback | null
   loading: boolean
+  failed?: boolean
 }) {
   return (
     <section className="feedback" aria-live="polite">
@@ -28,7 +30,11 @@ export function FeedbackPanel({
       <div className="feedback-body">
         {!feedback ? (
           <p className="feedback-empty">
-            {loading ? 'Listening to your take…' : 'Feedback will appear here once your take has been analyzed.'}
+            {failed
+              ? "Couldn't load feedback. Is the backend running?"
+              : loading
+                ? 'Listening to your take…'
+                : 'Feedback will appear here once your take has been analyzed.'}
           </p>
         ) : (
           <>
