@@ -24,7 +24,9 @@ MEDIAN_FILTER_MS = 50
 
 # Pass 2 starting knobs (not locked in DECISIONS.md — tune on takes)
 # Synth breath gaps are 60 ms; merge must stay stricter so real breaths stay split.
-RMS_DIP_RATIO = 0.5  # dip if rms < this × median rms of the span
+# Higher = shallower dips count. 0.5 missed legato same-pitch eighths on real takes;
+# 0.88 fixed boat.wav (23→26/27) without over-splitting synth perfect/edge takes; 0.98 over-splits.
+RMS_DIP_RATIO = 0.88
 RMS_DIP_MIN_MS = 30  # dip must last at least this long
 RMS_DIP_EDGE_MS = 40  # ignore attack/release at span edges
 MERGE_MAX_GAP_MS = 30  # merge same-pitch neighbors if gap ≤ this
