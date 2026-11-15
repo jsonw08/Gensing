@@ -6,7 +6,7 @@ import { DialogBox, Window } from '../components/desktop/Window'
 import { ScoreView } from '../components/ScoreView'
 import { useRecorder } from '../hooks/useRecorder'
 import type { Take, useTakes } from '../hooks/useTakes'
-import { audioDurationMs, isPlayableAudio } from '../lib/audio'
+import { audioDurationMs, downloadRecording, isPlayableAudio } from '../lib/audio'
 import { countInFor, DEFAULT_TEMPO_BPM, readScoreTiming, readScoreTitle } from '../lib/scoreInfo'
 
 export type Score = { file: File; xml: string }
@@ -108,6 +108,7 @@ export function Practice({
     rec.reset() // ready for the next take
   }
 
+  const download = (t: Take) => downloadRecording(t.blob, t.url, t.name, t.scoreName)
   const record = () => rec.start(countIn)
   const startOver = () => rec.restart(countIn)
 
@@ -117,6 +118,7 @@ export function Practice({
       items: [
         { label: 'Open score…', onSelect: () => scoreInputRef.current?.click(), disabled: busy },
         { label: 'Upload recording…', onSelect: () => uploadRef.current?.click(), disabled: !score || busy },
+        { label: 'Download selected take…', onSelect: () => selected && download(selected), disabled: !selected },
         'separator',
         { label: 'Welcome screen', onSelect: onBack, disabled: busy },
       ],
@@ -296,6 +298,9 @@ export function Practice({
             <>
               <button type="button" className="button" onClick={() => uploadRef.current?.click()} disabled={!score || busy}>
                 Upload…
+              </button>
+              <button type="button" className="button" onClick={() => selected && download(selected)} disabled={!selected}>
+                Download
               </button>
               <button type="button" className="button" onClick={() => selected && takes.remove(selected)} disabled={!selected || busy}>
                 Delete

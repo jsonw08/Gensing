@@ -7,6 +7,7 @@ import { DialogBox, Progress, Window } from '../components/desktop/Window'
 import { FeedbackPanel } from '../components/FeedbackPanel'
 import { type Grading, ScoreCard } from '../components/ScoreCard'
 import type { Take } from '../hooks/useTakes'
+import { downloadRecording } from '../lib/audio'
 import {
   analyze,
   ANALYZE_ENABLED,
@@ -91,6 +92,7 @@ export function Evaluate({ take, onBack, onHome }: { take: Take; onBack: () => v
       label: 'File',
       items: [
         { label: 'Open another score…', onSelect: onBack },
+        { label: 'Download this take…', onSelect: () => downloadRecording(take.blob, take.url, take.name, take.scoreName) },
         'separator',
         { label: 'Back to Practice', onSelect: onBack },
         ...(onHome ? ['separator' as const, { label: 'Welcome screen', onSelect: onHome }] : []),
