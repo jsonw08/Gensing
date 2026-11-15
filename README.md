@@ -1,79 +1,118 @@
-# Gensing
+<p align="center">
+  <img src="docs/brand/gensing-logo-3x2-desk.png" alt="Gensing" width="360">
+</p>
 
-Singing feedback app (HackUMass XIV). Upload a MusicXML score, record yourself singing it,
-and get the sheet music back with every note marked: in tune, out of tune, wrong, early/late,
-skipped or extra, plus an overall score and short AI coaching tips.
+<p align="center">
+  <b>Sing a piece and see exactly where you went wrong, right on the sheet music.</b><br>
+  Built in 24 hours at HackUMass XIV.
+</p>
 
-- **Start here:** [`docs/DECISIONS.md`](docs/DECISIONS.md): formats, API, conventions agreed before building.
-- Original design: [`docs/PIPELINE_NOTES.md`](docs/PIPELINE_NOTES.md); stage 4 in depth: [`docs/ALIGNMENT_EXPLAINED.md`](docs/ALIGNMENT_EXPLAINED.md).
-- AI assistants: [`AGENTS.md`](AGENTS.md) explains everything done so far and why.
+<p align="center">
+  <a href="https://youtu.be/pCPp2mwTlu0"><b>▶ Watch the demo video</b></a>
+</p>
 
-## Repo layout
+---
+
+## Why we built it
+
+All of us are musicians, and we've all had the same problem: practicing alone, you don't always
+know what you're getting wrong. A note is a little flat, an entrance is a bit late, and nobody's
+there to catch it. We started with singing, where it's the hardest to hear yourself.
+
+## What it does
+
+Upload your sheet music and record yourself singing it. Gensing listens to the recording and gives
+you the sheet music back with every note colored by how you did:
+
+| Mark | Meaning |
+|---|---|
+| In tune | Right note, right pitch |
+| Out of tune | Right note, but sharp or flat |
+| Wrong note | You sang a different note |
+| Early / late | Right note, off the beat |
+| Skipped | You didn't sing it |
+| Extra | You sang something that isn't written |
+
+You also get an overall score (pitch, intonation, rhythm, completeness) and short tips on what to
+work on. Click any note to hear how you sang it.
+
+Most singing apps only show a pitch line. Gensing tells you **which** note went wrong, **how**, and
+**where** in the piece.
+
+- **Free mode** (default): sing at your own tempo; rhythm is judged against your own pulse.
+- **Strict mode**: sing to the score's tempo after a one-bar count-in.
+- **Starting note**: plays your first pitch so you start in the right key.
+
+## How it works
 
 ```
-backend/     FastAPI + the analysis pipeline (Python)
-  app/main.py          /health, /analyze, /feedback
-  app/stages/          one module per pipeline stage (owner in each docstring)
-frontend/    React + Vite + TypeScript, OpenSheetMusicDisplay for the score
-contracts/   sample JSON for every hand-off between stages
-samples/     test pieces: <piece>/score.musicxml + generated takes/
-tools/       dev scripts (synth_take.py generates test recordings)
-docs/        design notes
+sheet music ─► notes you should sing ─┐
+                                      ├─► match ─► grade ─► colored score + score + tips
+recording ──► pitch ─► notes you sang ┘
 ```
 
-## Run locally
+1. **Read the score.** music21 turns the sheet music into a list of expected notes.
+2. **Hear the voice.** librosa's pYIN tracker follows your pitch every 10 ms, and our own algorithm
+   turns that curve into the notes you actually sang.
+3. **Match them up.** An edit-distance alignment (the same idea a spell checker uses) pairs sung
+   notes with written ones, so one skipped or extra note doesn't throw off the rest. It also handles
+   singing an octave up or down, recording delay, and notes cut in two.
+4. **Grade.** Each note is checked for pitch and timing, and the results roll up into your score.
+5. **Coach.** Claude reads the graded results and writes short tips. All the grading happens in our
+   code; the AI only explains it. If Claude isn't reachable, rule-based tips take over.
 
-Prereqs: Python 3.11+ and Node 20+.
+The frontend draws the score with [OpenSheetMusicDisplay](https://github.com/opensheetmusicdisplay/opensheetmusicdisplay) and colors each notehead from the
+backend's results.
 
-From the repo root:
+## Tech stack
+
+- **Frontend:** React, TypeScript, Vite, OpenSheetMusicDisplay, Web Audio API
+- **Backend:** Python, FastAPI, music21, librosa, NumPy
+- **AI:** Claude API
+
+## Run it locally
+
+Needs Python 3.11+ and Node 20+. From the repo root:
 
 ```bash
-npm run setup   # once: root tools, backend venv + pip install, frontend npm install
-npm run dev     # starts backend and frontend together; Ctrl+C stops both
+npm run setup   # once: installs everything
+npm run dev     # starts backend (:8000) and frontend (:5001) together
 ```
 
-- Frontend: http://localhost:5001
-- Backend: http://localhost:8000 (interactive API docs at http://localhost:8000/docs)
+Open http://localhost:5001 and load `samples/twinkle-twinkle/score.musicxml` to try it.
 
-Logs from both are shown in one terminal, prefixed `[api]` and `[web]`.
-To run just one side: `npm run dev:backend` or `npm run dev:frontend`.
-After someone adds a Python package to `backend/requirements.txt`, re-run `npm run setup:backend`.
+For AI tips, copy `backend/.env.example` to `backend/.env` and set `ANTHROPIC_API_KEY`. Without it,
+Gensing uses the rule-based tips.
 
-The frontend calls `/api/*`, and Vite proxies it to the backend on port 8000.
-Load `samples/c-major-scale/score.musicxml` to check that the score renders.
+<details>
+<summary>For developers</summary>
 
-## Test recordings
+- `npm test` runs the backend tests; `npm run check:takes` runs every test recording through the
+  pipeline and checks it against its answer key.
+- `npm run synth` regenerates the test recordings: generated "sung" takes of each piece in
+  `samples/` (perfect, with planted mistakes, an octave down, and delayed), each with an answer key.
+- `contracts/` has a sample JSON for every hand-off between stages.
+- Design and decisions: [`docs/DECISIONS.md`](docs/DECISIONS.md) (the spec),
+  [`docs/PIPELINE_NOTES.md`](docs/PIPELINE_NOTES.md), [`docs/ALIGNMENT_EXPLAINED.md`](docs/ALIGNMENT_EXPLAINED.md).
+- AI assistants: start with [`AGENTS.md`](AGENTS.md).
 
-`npm run synth` regenerates fake "sung" recordings for every `samples/*/score.musicxml`,
-each with an answer key of what `/analyze` should report:
+</details>
 
-| Take | What's in it | Expected result |
-|---|---|---|
-| `perfect` | sung exactly as written | all in tune, all on time |
-| `mistakes` | one wrong note, one flat, one late, one early, one skipped, one extra | each mistake caught, everything else green |
-| `octave-down` | perfect, an octave lower | all green (octave shift −12) |
-| `delayed` | perfect, everything 120 ms late | all on time (median offset ≈ 120 ms) |
+## What's next
 
-Every take starts with one silent bar of count-in (`countin_end_sec` is in its answer key).
-The audio is voice-like (vibrato, scoops, breath gaps, light noise); `npm run synth -- --clean`
-writes pure-tone versions to `takes-clean/` for debugging.
+- Tune the algorithm to the style of music you're singing
+- Support more complex classical and opera singing
+- Expand to other instruments
 
-Pieces: `c-major-scale` (simplest case), `edge-cases` (pickup bar, rests, a tie across a
-barline, repeated notes, a big leap) and `twinkle-twinkle` (Twinkle, Twinkle, Little Star, for testing
-with a real voice). Add the real demo piece as `samples/<name>/score.musicxml`
-and run `npm run synth` again.
+## Team
 
-## Claude API key
-
-Stage 6 calls Claude. Copy `backend/.env.example` to `backend/.env` and set `ANTHROPIC_API_KEY`.
-Without it, `/feedback` uses the rule-based fallback.
-
-## Status
-
-`/analyze` runs the real pipeline (stages 1-5) and `/feedback` runs stage 6 (Claude, or the
-rule-based fallback). The sample JSON in `contracts/` describes one real run, for building
-against without the backend (`npm run dev:mock` in the frontend).
+Jason (frontend), Jonathan (audio + server), Mehul (music logic)
 
 ## Credits
 
-- Piano samples (the "Starting note" button, `frontend/public/piano/`): [Salamander Grand Piano](https://archive.org/details/SalamanderGrandPianoV3) by Alexander Holm, licensed [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). MP3 copies from [Tone.js](https://github.com/Tonejs/audio).
+Sheet music rendering: [OpenSheetMusicDisplay](https://github.com/opensheetmusicdisplay/opensheetmusicdisplay)
+(BSD-3-Clause).
+
+Piano samples for the starting note: [Salamander Grand Piano](https://archive.org/details/SalamanderGrandPianoV3)
+by Alexander Holm, [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). MP3 copies from
+[Tone.js](https://github.com/Tonejs/audio).
