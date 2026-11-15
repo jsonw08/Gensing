@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "times new roman",
+        "createdAt": "2026-11-15T07:43:26.508Z",
+        "reason": "assistant decision: the Welcome sample staff imitates OSMD's engraving, which renders score text in Times New Roman; DESIGN.md rule 'Engraving Is Not UI'"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "apple symbols",
+        "createdAt": "2026-11-15T07:43:26.523Z",
+        "reason": "assistant decision: treble-clef glyph in the Welcome sample staff (engraving, not UI type); DESIGN.md rule 'Engraving Is Not UI'"
+      }
+    ]
+  }
+}

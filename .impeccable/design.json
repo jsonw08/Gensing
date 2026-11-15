@@ -1,0 +1,586 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-15T07:42:22.845514+00:00",
+  "title": "Design System: Gensing",
+  "extensions": {
+    "colorMeta": {
+      "desk-periwinkle": {
+        "role": "neutral",
+        "displayName": "Desk Periwinkle",
+        "tonalRamp": [
+          "#080a16",
+          "#1e233c",
+          "#373f66",
+          "#545e8d",
+          "#747fb1",
+          "#96a2d6",
+          "#bcc7f4",
+          "#e5edff"
+        ]
+      },
+      "desk-stripe": {
+        "role": "neutral",
+        "displayName": "Desk Stripe",
+        "tonalRamp": [
+          "#080a16",
+          "#1e233c",
+          "#373f65",
+          "#545e8c",
+          "#747fb0",
+          "#96a2d5",
+          "#bcc7f4",
+          "#e5edff"
+        ]
+      },
+      "platinum-face": {
+        "role": "neutral",
+        "displayName": "Platinum Face",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "platinum-deep": {
+        "role": "neutral",
+        "displayName": "Platinum Deep",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "bevel-shade": {
+        "role": "neutral",
+        "displayName": "Bevel Shade",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "bevel-hilite": {
+        "role": "neutral",
+        "displayName": "Bevel Hilite",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "frame-black": {
+        "role": "neutral",
+        "displayName": "Frame Black",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Ink Soft",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "disabled-grey": {
+        "role": "neutral",
+        "displayName": "Disabled Grey",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "well-white": {
+        "role": "neutral",
+        "displayName": "Well White",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "balloon-cream": {
+        "role": "neutral",
+        "displayName": "Balloon Cream",
+        "tonalRamp": [
+          "#0b0b09",
+          "#252520",
+          "#43433a",
+          "#626257",
+          "#838378",
+          "#a6a69a",
+          "#cacabf",
+          "#efefe8"
+        ]
+      },
+      "counter-night": {
+        "role": "neutral",
+        "displayName": "Counter Night",
+        "tonalRamp": [
+          "#0a0b10",
+          "#22242e",
+          "#3e4151",
+          "#5c6073",
+          "#7d8195",
+          "#9fa4b9",
+          "#c4c8db",
+          "#ebeefb"
+        ]
+      },
+      "select-indigo": {
+        "role": "primary",
+        "displayName": "Selection Indigo",
+        "tonalRamp": [
+          "#050821",
+          "#171e51",
+          "#2c3787",
+          "#4656b5",
+          "#6579dc",
+          "#869dff",
+          "#adc3ff",
+          "#daecff"
+        ]
+      },
+      "select-tint": {
+        "role": "primary",
+        "displayName": "Selection Tint",
+        "tonalRamp": [
+          "#0a0b10",
+          "#23242e",
+          "#3e4150",
+          "#5d6073",
+          "#7e8195",
+          "#a0a4b8",
+          "#c5c8da",
+          "#ebeefb"
+        ]
+      },
+      "in-tune": {
+        "role": "status",
+        "displayName": "In Tune",
+        "tonalRamp": [
+          "#001102",
+          "#00310b",
+          "#005419",
+          "#007832",
+          "#1b9b53",
+          "#4cbf75",
+          "#85e1a0",
+          "#c3ffd2"
+        ]
+      },
+      "out-of-tune": {
+        "role": "status",
+        "displayName": "Out of Tune",
+        "tonalRamp": [
+          "#160800",
+          "#3a1e00",
+          "#633600",
+          "#8a5500",
+          "#ae7700",
+          "#d39a00",
+          "#f2c161",
+          "#ffeaab"
+        ]
+      },
+      "out-of-tune-dot": {
+        "role": "status",
+        "displayName": "Out-of-Tune Dot",
+        "tonalRamp": [
+          "#140900",
+          "#372000",
+          "#5e3a00",
+          "#835800",
+          "#a67a00",
+          "#cb9d3a",
+          "#ebc375",
+          "#ffebb7"
+        ]
+      },
+      "wrong-note": {
+        "role": "status",
+        "displayName": "Wrong Note",
+        "tonalRamp": [
+          "#210002",
+          "#51000b",
+          "#870019",
+          "#b70031",
+          "#e03d52",
+          "#ff6573",
+          "#ff989e",
+          "#ffcfd0"
+        ]
+      },
+      "skipped": {
+        "role": "status",
+        "displayName": "Skipped",
+        "tonalRamp": [
+          "#0c0b09",
+          "#272521",
+          "#46413b",
+          "#666059",
+          "#87817a",
+          "#aaa49c",
+          "#cec8c1",
+          "#f2eee9"
+        ]
+      },
+      "timing": {
+        "role": "status",
+        "displayName": "Timing (early / late)",
+        "tonalRamp": [
+          "#070429",
+          "#1c1262",
+          "#3524a2",
+          "#4e44d6",
+          "#6b6afe",
+          "#8b8fff",
+          "#b0baff",
+          "#dbe6ff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display (Silkscreen)",
+        "purpose": "Total score and count-in beat; 48px on short screens."
+      },
+      "headline": {
+        "displayName": "Headline (Silkscreen)",
+        "purpose": "Welcome name; also Sing! (32px) and the Recorder counter (26px)."
+      },
+      "brand": {
+        "displayName": "Brand",
+        "purpose": "Menu-bar brand only."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Window titles, legends, list headers."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Window contents."
+      },
+      "body-reading": {
+        "displayName": "Body Reading",
+        "purpose": "Coach summary and Welcome lede."
+      },
+      "ui": {
+        "displayName": "UI",
+        "purpose": "Desktop default: menus, toolbars, buttons."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Legend, balloon, hints, meta lines."
+      }
+    },
+    "shadows": [
+      {
+        "name": "window",
+        "value": "2px 2px 0 #000",
+        "purpose": "Every window and dialog: the hard desktop shadow."
+      },
+      {
+        "name": "menu-drop",
+        "value": "2px 2px 0 rgba(0,0,0,0.55)",
+        "purpose": "Open menus."
+      },
+      {
+        "name": "balloon-drop",
+        "value": "2px 2px 0 rgba(0,0,0,0.3)",
+        "purpose": "Balloon help."
+      },
+      {
+        "name": "bevel-raised",
+        "value": "inset 1px 1px 0 #fff, inset -1px -1px 0 #8a8a8a",
+        "purpose": "Buttons, close box, thumbs."
+      },
+      {
+        "name": "well-recessed",
+        "value": "-1px -1px 0 #8a8a8a, 1px 1px 0 #fff",
+        "purpose": "Wells around a 1px black frame."
+      },
+      {
+        "name": "field-inset",
+        "value": "inset 1px 1px 0 #8a8a8a",
+        "purpose": "Fields, radio sockets, slider track."
+      },
+      {
+        "name": "pressed",
+        "value": "inset 1px 1px 0 #2f2f2f",
+        "purpose": "Held button on #595959."
+      },
+      {
+        "name": "dialog-frame",
+        "value": "inset 0 0 0 3px #e8e8e8, inset 0 0 0 4px #8a8a8a, 2px 2px 0 #000",
+        "purpose": "Dialog double frame."
+      }
+    ],
+    "motion": [
+      {
+        "name": "barber-pole",
+        "value": "0.9s linear infinite",
+        "purpose": "Indeterminate progress; off under reduced motion."
+      },
+      {
+        "name": "marching-ants",
+        "value": "0.6s linear infinite",
+        "purpose": "Bars selected from a coach tip; off under reduced motion."
+      },
+      {
+        "name": "recording-blink",
+        "value": "1s steps(2, start) infinite",
+        "purpose": "Recording lamp; off under reduced motion."
+      },
+      {
+        "name": "score-scroll",
+        "value": "smooth scroll",
+        "purpose": "Page scrolls to centre the first selected bar."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "stack",
+        "value": "max-width: 1080px",
+        "purpose": "Windows stack into one column; desktop scrolls."
+      },
+      {
+        "name": "short-laptop",
+        "value": "max-height: 820px and min-width: 1081px",
+        "purpose": "Results window tightens."
+      },
+      {
+        "name": "welcome-narrow",
+        "value": "max-width: 600px",
+        "purpose": "Welcome padding drops to 16px."
+      }
+    ],
+    "scoreMarking": {
+      "bandOpacity": {
+        "problem": 0.26,
+        "problemFaded": 0.12,
+        "inTune": 0.1,
+        "inTuneFaded": 0.05
+      },
+      "bandBlend": "multiply",
+      "bandRadius": "7px",
+      "bandPadX": "7px",
+      "bandPadY": "12px",
+      "dotSize": "6px",
+      "dotFadedOpacity": 0.4,
+      "legendSwatchMix": {
+        "problem": "30%",
+        "inTune": "16%"
+      },
+      "extras": "no mark; balloon only"
+    }
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Bevelled platinum lozenge; presses in to dark grey.",
+      "html": "<button class=\"ds-button\">Upload…</button>",
+      "css": ":host { --desk:#7b86b8; --face:#e8e8e8; --shade:#8a8a8a; --hilite:#fff; --frame:#000; --ink:#000; --well:#fff; --select:#3c4aa8; --select-tint:#dde1f7; --font-ui:'Chivo Mono', ui-monospace, Menlo, monospace; --font-pixel:'Silkscreen','Chivo Mono',monospace; } .ds-button{font:13px/1.45 var(--font-ui);min-height:26px;padding:3px 16px;border:1px solid var(--frame);border-radius:7px;background:var(--face);color:var(--ink);box-shadow:inset 1px 1px 0 var(--hilite),inset -1px -1px 0 var(--shade);cursor:default}.ds-button:focus-visible{outline:2px solid var(--select);outline-offset:2px}.ds-button:active{background:#595959;color:#fff;box-shadow:inset 1px 1px 0 #2f2f2f}.ds-button:disabled{color:#9a9a9a;border-color:#9a9a9a}"
+    },
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "The one Return action per window: same button wearing a 2px black ring.",
+      "html": "<button class=\"ds-button ds-default\">Get feedback</button>",
+      "css": ":host { --desk:#7b86b8; --face:#e8e8e8; --shade:#8a8a8a; --hilite:#fff; --frame:#000; --ink:#000; --well:#fff; --select:#3c4aa8; --select-tint:#dde1f7; --font-ui:'Chivo Mono', ui-monospace, Menlo, monospace; --font-pixel:'Silkscreen','Chivo Mono',monospace; } .ds-button{font:13px/1.45 var(--font-ui);min-height:26px;padding:3px 16px;border:1px solid var(--frame);border-radius:7px;background:var(--face);color:var(--ink);box-shadow:inset 1px 1px 0 var(--hilite),inset -1px -1px 0 var(--shade);cursor:default}.ds-default{outline:2px solid var(--frame);outline-offset:2px;margin:3px}.ds-default:focus-visible{outline-color:var(--select)}.ds-button:active{background:#595959;color:#fff;box-shadow:inset 1px 1px 0 #2f2f2f}"
+    },
+    {
+      "name": "Window",
+      "kind": "card",
+      "refersTo": "window",
+      "description": "Platinum window: 1px frame, 2px hard shadow, pinstriped title bar with close box.",
+      "html": "<section class=\"ds-window\"><header class=\"ds-titlebar\"><span class=\"ds-closebox\"></span><h2 class=\"ds-title\">Results</h2></header><div class=\"ds-body\">Window contents in Chivo Mono.</div></section>",
+      "css": ":host { --desk:#7b86b8; --face:#e8e8e8; --shade:#8a8a8a; --hilite:#fff; --frame:#000; --ink:#000; --well:#fff; --select:#3c4aa8; --select-tint:#dde1f7; --font-ui:'Chivo Mono', ui-monospace, Menlo, monospace; --font-pixel:'Silkscreen','Chivo Mono',monospace; } .ds-window{width:320px;background:var(--face);border:1px solid var(--frame);box-shadow:2px 2px 0 var(--frame);font:14px/1.45 var(--font-ui);color:var(--ink)}.ds-titlebar{position:relative;height:22px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--frame);padding:0 30px}.ds-titlebar::before{content:'';position:absolute;inset:4px;background:repeating-linear-gradient(to bottom,#a3a3a3 0 1px,var(--face) 1px 2px)}.ds-title{position:relative;margin:0;padding:0 9px;background:var(--face);font-size:13px;font-weight:700}.ds-closebox{position:absolute;left:9px;top:4px;width:13px;height:13px;background:var(--face);border:1px solid var(--frame);box-shadow:inset 1px 1px 0 var(--hilite),inset -1px -1px 0 var(--shade);z-index:1}.ds-body{padding:12px}"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Square recessed white field.",
+      "html": "<label class=\"ds-label\">Tempo <input class=\"ds-field\" value=\"80\"> bpm</label>",
+      "css": ":host { --desk:#7b86b8; --face:#e8e8e8; --shade:#8a8a8a; --hilite:#fff; --frame:#000; --ink:#000; --well:#fff; --select:#3c4aa8; --select-tint:#dde1f7; --font-ui:'Chivo Mono', ui-monospace, Menlo, monospace; --font-pixel:'Silkscreen','Chivo Mono',monospace; } .ds-label{font:14px var(--font-ui);display:inline-flex;gap:8px;align-items:center}.ds-field{width:64px;height:26px;padding:2px 6px;font:inherit;background:var(--well);border:1px solid var(--frame);box-shadow:inset 1px 1px 0 var(--shade);border-radius:0}.ds-field:focus-visible{outline:2px solid var(--select);outline-offset:2px}"
+    },
+    {
+      "name": "Menu Bar",
+      "kind": "nav",
+      "refersTo": "menubar",
+      "description": "26px platinum bar; open titles and hovered items invert to indigo.",
+      "html": "<nav class=\"ds-menubar\"><span class=\"ds-brand\">Gensing</span><button class=\"ds-menu ds-open\">File</button><button class=\"ds-menu\">Take</button><button class=\"ds-menu\">View</button><span class=\"ds-clock\">2:36 AM</span></nav>",
+      "css": ":host { --desk:#7b86b8; --face:#e8e8e8; --shade:#8a8a8a; --hilite:#fff; --frame:#000; --ink:#000; --well:#fff; --select:#3c4aa8; --select-tint:#dde1f7; --font-ui:'Chivo Mono', ui-monospace, Menlo, monospace; --font-pixel:'Silkscreen','Chivo Mono',monospace; } .ds-menubar{height:26px;display:flex;align-items:stretch;padding:0 10px;background:var(--face);border-bottom:1px solid var(--frame);font:13px var(--font-ui)}.ds-brand{display:flex;align-items:center;padding:0 12px 0 2px;font:14px var(--font-pixel);letter-spacing:.04em}.ds-menu{border:0;background:none;font:inherit;padding:0 11px;cursor:default}.ds-menu:hover,.ds-open{background:var(--select);color:#fff}.ds-menu:focus-visible{outline:2px solid var(--select);outline-offset:2px}.ds-clock{margin-left:auto;display:flex;align-items:center;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Radio Group",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Etched group box with labelled radio rows (Grading).",
+      "html": "<fieldset class=\"ds-group\"><legend>Grading</legend><label class=\"ds-radio\"><input type=\"radio\" name=\"t\" checked> Free tempo</label> <label class=\"ds-radio\"><input type=\"radio\" name=\"t\"> Strict</label></fieldset>",
+      "css": ":host { --desk:#7b86b8; --face:#e8e8e8; --shade:#8a8a8a; --hilite:#fff; --frame:#000; --ink:#000; --well:#fff; --select:#3c4aa8; --select-tint:#dde1f7; --font-ui:'Chivo Mono', ui-monospace, Menlo, monospace; --font-pixel:'Silkscreen','Chivo Mono',monospace; } .ds-group{font:14px var(--font-ui);border:1px solid var(--shade);box-shadow:1px 1px 0 var(--hilite),inset 1px 1px 0 var(--hilite);padding:6px 10px 8px;margin:0}.ds-group legend{padding:0 5px;font-weight:700}.ds-radio{display:inline-flex;align-items:center;gap:6px;margin-right:14px}.ds-radio input{appearance:none;margin:0;width:13px;height:13px;border:1px solid var(--frame);border-radius:50%;background:var(--well);box-shadow:inset 1px 1px 0 var(--shade)}.ds-radio input:checked{background:radial-gradient(circle,#000 0 2.5px,#fff 3px)}.ds-radio input:focus-visible{outline:2px solid var(--select);outline-offset:2px}"
+    },
+    {
+      "name": "Score Marking",
+      "kind": "custom",
+      "refersTo": "score-dot",
+      "description": "Flat pastel verdict bands (multiplied), one 6px dot row, balloon help. No text tags.",
+      "html": "<div class=\"ds-staff\"><span class=\"ds-band\" style=\"left:10px;width:90px;background:#1f9d55;opacity:.1\"></span><span class=\"ds-band\" style=\"left:110px;width:28px;background:#d49b00\"></span><span class=\"ds-band\" style=\"left:148px;width:28px;background:#d6334a\"></span><button class=\"ds-dot\" style=\"left:124px;background:#a87c00\" aria-label=\"Out of tune\"></button><button class=\"ds-dot\" style=\"left:162px;background:#d6334a\" aria-label=\"Wrong note\"></button><div class=\"ds-balloon\"><strong><i></i>F#4 · “low”</strong><span>Out of tune · 41 cents flat</span></div></div>",
+      "css": ":host { --desk:#7b86b8; --face:#e8e8e8; --shade:#8a8a8a; --hilite:#fff; --frame:#000; --ink:#000; --well:#fff; --select:#3c4aa8; --select-tint:#dde1f7; --font-ui:'Chivo Mono', ui-monospace, Menlo, monospace; --font-pixel:'Silkscreen','Chivo Mono',monospace; } .ds-staff{position:relative;width:240px;height:120px;margin-top:10px;background:#fff repeating-linear-gradient(to bottom,transparent 0 9px,#3d3d3d 9px 10px) 0 60px/100% 50px no-repeat;font:12px/1.4 var(--font-ui)}.ds-band{position:absolute;top:52px;height:64px;border-radius:7px;opacity:.26;mix-blend-mode:multiply}.ds-dot{position:absolute;top:42px;width:6px;height:6px;padding:0;border:0;border-radius:50%;transform:translateX(-50%);cursor:help}.ds-dot:focus-visible{outline:2px solid var(--select);outline-offset:2px}.ds-balloon{position:absolute;left:60px;top:-6px;display:grid;gap:2px;padding:8px 12px;background:#fffff2;border:1px solid var(--frame);border-radius:12px;box-shadow:2px 2px 0 rgba(0,0,0,.3);white-space:nowrap}.ds-balloon strong{display:flex;gap:7px;align-items:center}.ds-balloon i{width:10px;height:10px;background:#d49b00;border:1px solid rgba(0,0,0,.4)}"
+    },
+    {
+      "name": "Coach Tip",
+      "kind": "card",
+      "refersTo": "coach-tip-selected",
+      "description": "White tip box; a selected tip turns indigo-tinted with indigo bar chips.",
+      "html": "<div class=\"ds-tip ds-sel\" tabindex=\"0\"><b>Watch the accidentals</b><p>The F# in bar 13 was 41 cents flat.</p><div><span>Bar 13</span> <span>Bar 14</span></div></div>",
+      "css": ":host { --desk:#7b86b8; --face:#e8e8e8; --shade:#8a8a8a; --hilite:#fff; --frame:#000; --ink:#000; --well:#fff; --select:#3c4aa8; --select-tint:#dde1f7; --font-ui:'Chivo Mono', ui-monospace, Menlo, monospace; --font-pixel:'Silkscreen','Chivo Mono',monospace; } .ds-tip{width:300px;font:14px/1.6 var(--font-ui);padding:11px 13px;border:1px solid var(--shade);background:var(--well);display:grid;gap:6px;cursor:pointer}.ds-tip p{margin:0}.ds-tip:hover{border-color:var(--frame)}.ds-tip:focus-visible{outline:2px solid var(--select);outline-offset:2px}.ds-tip span{padding:0 6px;border:1px solid var(--frame);font-size:12.5px;background:var(--face)}.ds-sel{background:var(--select-tint);border-color:var(--select);box-shadow:inset 0 0 0 1px var(--select)}.ds-sel span{background:var(--select);border-color:var(--select);color:#fff}"
+    },
+    {
+      "name": "Barber-Pole Progress",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Indeterminate progress; static under reduced motion.",
+      "html": "<div class=\"ds-progress\" role=\"progressbar\" aria-label=\"Scoring\"></div>",
+      "css": ":host { --desk:#7b86b8; --face:#e8e8e8; --shade:#8a8a8a; --hilite:#fff; --frame:#000; --ink:#000; --well:#fff; --select:#3c4aa8; --select-tint:#dde1f7; --font-ui:'Chivo Mono', ui-monospace, Menlo, monospace; --font-pixel:'Silkscreen','Chivo Mono',monospace; } .ds-progress{width:240px;height:13px;border:1px solid var(--frame);background:repeating-linear-gradient(-45deg,var(--select) 0 5px,#c9cef0 5px 10px);background-size:28px 28px;animation:ds-barber .9s linear infinite}@keyframes ds-barber{to{background-position:28px 0}}@media (prefers-reduced-motion:reduce){.ds-progress{animation:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Working on a File",
+    "overview": "Gensing is a late-90s platinum desktop. Practising a piece is working on a document: the score is a document window, and the Results, Coach, Recorder and Takes are utility windows beside it on a periwinkle diagonal-stripe desktop. Everything is built from the period's own materials: 1px black frames, a 2px hard black window shadow, pinstriped title bars with a close box, bevelled platinum faces, white recessed wells, etched group boxes, a barber-pole progress bar, marching-ants selection and balloon help. It deliberately refuses the card-and-pill SaaS dashboard.\n\nThe desktop is calm so the score can be loud. Chrome is greyscale plus one selection indigo; the only saturated colour on a results screen is the verdict marking on the score (flat pastel bands and small dots) and the notes meter that sums it up. Type is monospaced throughout (Chivo Mono), with a pixel face (Silkscreen) reserved for the brand and for big numbers.\n\nWindows sit in a fixed layout. They cannot be dragged, and the working screens are exactly one viewport tall: windows scroll inside, the desktop never does. The menus work (File, Take, View, Coach), with keyboard navigation.",
+    "keyCharacteristics": [
+      "Platinum windows with 1px black frames and a 2px hard black shadow on a striped periwinkle desktop.",
+      "Square corners on everything structural; only buttons (7px), score bands (7px) and balloons (12px) are rounded.",
+      "Chivo Mono for all UI text; Silkscreen only for the brand and big numerals.",
+      "Five fixed verdict hues, shown on the score only as flat pastel bands and 6px dots.",
+      "Pixel icons drawn from character grids, never icon fonts or emoji.",
+      "Self-hosted fonts (@fontsource), so the demo works offline."
+    ],
+    "rules": [
+      {
+        "name": "The Score Owns the Colour Rule",
+        "body": "Verdict hues appear only on the score (bands, dots), in the legend, in the notes meter and in the balloon's swatch. Chrome never borrows them, and no other saturated colour enters a results screen.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Indigo Rule",
+        "body": "Selection and focus are always Selection Indigo. Don't introduce a second accent for \"primary\" actions; the default button is marked by its ring, not by colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The Pixel Is for Numbers Rule",
+        "body": "Silkscreen sets the brand and big numerals only. Never set sentences, buttons or labels in it.",
+        "section": "typography"
+      },
+      {
+        "name": "The Engraving Is Not UI Rule",
+        "body": "The score's own type (title, lyrics, dynamics) is OSMD's engraving, not the UI type. Don't restyle it with the UI fonts.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hard Shadow Rule",
+        "body": "Shadows are solid offsets of 2px or less, never blurred. The 2px black window shadow is native to this world, not decoration; it belongs on windows and dialogs, and nothing else gets a heavier one.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do build every new surface as a window: platinum face, 1px black frame, 2px hard black shadow, pinstriped 22px title bar with a close box, square corners.",
+      "Do put recessed content (lists, pages, inputs) in a white well with the reversed bevel.",
+      "Do use Selection Indigo for every selected, open, hovered-menu and focused state, and the 2px indigo focus outline at a 2px offset.",
+      "Do mark the one Return action in a window with the default-button ring.",
+      "Do keep the verdict hues exactly as defined and show them on the score only as flat pastel bands (problems 0.26, in tune 0.10) and 6px dots.",
+      "Do put note details in the balloon (cents flat or sharp, ms early or late, what was sung, extras), using the product's verdict words.",
+      "Do draw new icons as pixel grids in `Icon.tsx`.",
+      "Do honour `prefers-reduced-motion`: barber pole, marching ants and the recording blink all stop.",
+      "Do check score-marking changes against error-heavy takes (the `mistakes` takes, e.g. lantern-song), not only the clean `perfect` ones: the team caught marking regressions this way that clean takes hide.",
+      "Do keep fonts self-hosted through @fontsource; the demo must work offline."
+    ],
+    "donts": [
+      "Don't add text tags, pills or labels on the score for verdicts; the band, the dot and the balloon carry it.",
+      "Don't give extra notes a mark of their own (no \"+\" glyphs); they live only in the balloon.",
+      "Don't colour noteheads or restyle OSMD's engraving fonts.",
+      "Don't use rounded cards, pill buttons, soft blurred shadows or gradients-as-decoration; this is not a SaaS dashboard.",
+      "Don't make windows draggable or closable, or let the working screens scroll the desktop above 1080px wide.",
+      "Don't use emoji, icon fonts or text glyphs as icons, or set sentences in Silkscreen.",
+      "Don't use Apple's logo, the Chicago font or the Happy Mac; Gensing uses its own icons and fonts.",
+      "Don't load fonts or scripts from a CDN at runtime."
+    ]
+  }
+}

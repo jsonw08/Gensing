@@ -40,3 +40,10 @@ export function countInFor(timing: Pick<ScoreTiming, 'beats' | 'beatType'>, temp
   const quarterSec = 60 / tempoBpm
   return { beats: timing.beats, intervalSec: quarterSec * (4 / timing.beatType) }
 }
+
+/** The piece's title from MusicXML (work title, else movement title), or null. */
+export function readScoreTitle(xml: string): string | null {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml')
+  const title = doc.querySelector('work > work-title')?.textContent?.trim() || doc.querySelector('movement-title')?.textContent?.trim()
+  return title || null
+}

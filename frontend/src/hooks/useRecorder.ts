@@ -5,7 +5,9 @@ export type RecorderStatus = 'idle' | 'countin' | 'recording' | 'stopped'
 
 export type CountIn = { beats: number; intervalSec: number }
 
-const MIC_SETTLE_MS = 400 // after first opening the mic, before the first click
+// After first opening the mic, before the first click. Opening the mic can switch the audio output (e.g.
+// Bluetooth headphones into headset mode); clicks played during the switch are lost, so wait it out.
+const MIC_SETTLE_MS = 1000
 const CLICK_LEAD_SEC = 0.25 // schedule the first click this far ahead
 
 // Microphone recorder with a count-in, stop and restart, built on MediaRecorder.
@@ -126,6 +128,8 @@ export function useRecorder() {
           if (recRef.current !== rec) return // stopped or restarted meanwhile
         }
         await ctx.resume()
+        // One line per count-in, to diagnose clicks that aren't heard (device switches, a stuck context).
+        console.info('[count-in]', { micJustOpened: fresh, audio: ctx.state, outputLatency: ctx.outputLatency, sampleRate: ctx.sampleRate })
 
         // Schedule one bar of clicks, then follow the audio clock (what's being heard) frame by frame.
         const firstClick = ctx.currentTime + CLICK_LEAD_SEC
@@ -184,6 +188,12 @@ export function useRecorder() {
     [discard],
   )
 
+  // Open the mic ahead of time (e.g. once a score is chosen), so the permission prompt and any audio device
+  // switch it causes happen before the first take's count-in, not during it. Errors surface on Record.
+  const warmMic = useCallback(() => {
+    openMic().catch(() => {})
+  }, [openMic])
+
   // restart = start again (throws the current take away); it takes the same count-in argument.
-  return { status, elapsedMs, countInBeat, countinEndSec, blob, url, error, start, restart: start, stop, reset }
+  return { status, elapsedMs, countInBeat, countinEndSec, blob, url, error, start, restart: start, stop, reset, warmMic }
 }
