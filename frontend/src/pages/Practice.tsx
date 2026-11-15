@@ -7,6 +7,7 @@ import { ScoreView } from '../components/ScoreView'
 import { useRecorder } from '../hooks/useRecorder'
 import type { Take, useTakes } from '../hooks/useTakes'
 import { audioDurationMs, downloadRecording, isPlayableAudio } from '../lib/audio'
+import { audioContext } from '../lib/metronome'
 import { countInFor, DEFAULT_TEMPO_BPM, readScoreTiming, readScoreTitle } from '../lib/scoreInfo'
 import { playNote, preloadNote, readStartNote } from '../lib/startNote'
 
