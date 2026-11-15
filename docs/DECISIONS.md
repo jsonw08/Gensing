@@ -307,7 +307,7 @@ can import it without a circular import through `app.main`).
 
 ### Claude API (stage 6)
 
-- Model **`claude-opus-5-5`** at low effort (short task). Switch to a faster model only if latency is a problem.
+- Model **`claude-sonnet-5-5`** at low effort (short task). Switched from Opus for lower latency/cost on this short coaching task.
 - Structured output with the `feedback.json` schema, so the reply is always valid JSON in the right shape.
 - System prompt: supportive vocal coach, use ONLY the given facts, never invent errors or numbers, max 3 tips, under 150 words.
 - Send only: `meta`, `score`, `counts`, `patterns`, `extras`, and problem notes (not `in_tune`+`on_time`), max 30.
