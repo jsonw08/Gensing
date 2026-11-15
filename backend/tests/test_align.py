@@ -179,10 +179,10 @@ def test_timing_jitter_changes_nothing(piece):
 # --------------------------------------------------------------------------- modes and edge cases
 
 
-def test_free_mode_not_available_yet():
+def test_unknown_mode_is_rejected():
     with pytest.raises(AnalysisError) as err:
-        align(written("C4"), sung(("C4", 0.0)), mode="free")
-    assert (err.value.code, err.value.stage, err.value.status) == ("invalid_input", "align", 422)
+        align(written("C4"), sung(("C4", 0.0)), mode="fast")
+    assert (err.value.code, err.value.stage, err.value.status) == ("invalid_input", "align", 400)
 
 
 def test_nothing_sung_means_everything_skipped():
@@ -458,3 +458,95 @@ def test_near_id_after_a_tempo_change():
     sung_notes = sung(("C4", 0.0), ("D4", 1.0), ("E4", 2.0), ("F4", 2.5), ("G4", 3.0), ("C6", 3.6), ("A4", 4.0))
     extra = next(p for p in align(written_tempo_change(), sung_notes)["pairs"] if p["type"] == "extra")
     assert extra["near_id"] == "m1-n5"
+
+
+
+# --------------------------------------------------------------------------- free mode (3e)
+
+
+def at_speed(sung_notes, speed, lead_in=0.0):
+    """The same performance sung at `speed` x the score's tempo (0.75 = slower), starting `lead_in` s later."""
+    k = 1.0 / speed
+    return {"notes": [dict(n, start_sec=n["start_sec"] * k + lead_in, end_sec=n["end_sec"] * k + lead_in)
+                      for n in sung_notes["notes"]]}
+
+
+@pytest.mark.parametrize("piece", PIECES)
+@pytest.mark.parametrize("speed", [0.75, 1.0, 1.3])
+def test_free_mode_follows_the_singers_speed(piece, speed):
+    expected = parse_score(score_path(piece))
+    sung_notes = at_speed(load_take(piece, "perfect")[0], speed)
+    result = align(expected, sung_notes, mode="free")
+    check_invariants(expected, sung_notes, result)
+    assert result["tempo_scale"] == pytest.approx(speed, abs=0.001)
+    assert result["time_offset_sec"] == pytest.approx(0.0, abs=0.001)
+    assert {p["type"] for p in result["pairs"]} == {"match"}
+    assert max(p["cost"] for p in result["pairs"]) < 0.01
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_free_mode_mistakes_take_slowed_aligns_the_same(piece):
+    expected = parse_score(score_path(piece))
+    plain, answer = load_take(piece, "mistakes")
+    a = align(expected, plain, mode="free")
+    b = align(expected, at_speed(plain, 0.8), mode="free")
+    assert summary(a) == summary(b)
+    assert [p.get("near_id") for p in b["pairs"] if p["type"] == "extra"] == [e["near_id"] for e in answer["extras"]]
+    assert b["tempo_scale"] == pytest.approx(0.8, abs=0.01)
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_free_mode_gradual_ritardando(piece):
+    # Getting slower and slower: by the end each beat takes ~40% longer. A straight line is only an
+    # approximation, but pitch keeps the pairs right.
+    expected = parse_score(score_path(piece))
+    perfect, _ = load_take(piece, "perfect")
+    end = perfect["notes"][-1]["end_sec"]
+    warp = lambda t: t + 0.2 * t * t / end  # noqa: E731
+    sung_notes = {"notes": [dict(n, start_sec=warp(n["start_sec"]), end_sec=warp(n["end_sec"])) for n in perfect["notes"]]}
+    result = align(expected, sung_notes, mode="free")
+    check_invariants(expected, sung_notes, result)
+    assert {p["type"] for p in result["pairs"]} == {"match"}
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_free_mode_everything_at_once(piece):
+    # Slower, an octave down, two split notes, a little jitter and 1.5 s of silence before singing
+    expected = parse_score(score_path(piece))
+    sung_notes, _ = load_take(piece, "octave-down", split=[2, 5], jitter_ms=15, seed=7)
+    sung_notes = at_speed(sung_notes, 0.8, lead_in=1.5)
+    result = align(expected, sung_notes, mode="free")
+    check_invariants(expected, sung_notes, result)
+    assert result["octave_shift"] == -12
+    assert result["tempo_scale"] == pytest.approx(0.8, abs=0.02)
+    assert result["time_offset_sec"] == pytest.approx(1.5, abs=0.05)
+    assert {p["type"] for p in result["pairs"]} == {"match"}
+    assert sum(len(p["sids"]) == 2 for p in result["pairs"]) == 2
+
+
+def test_free_mode_with_too_few_notes_keeps_speed_one():
+    result = align(written("C4", "D4"), sung(("C4", 0.0), ("D4", 2.0)), mode="free")
+    assert (result["tempo_scale"], result["time_offset_sec"]) == (1.0, 0.0)
+
+
+def test_free_mode_absurd_speed_falls_back():
+    # Four times slower than written is outside 0.4x-2.5x: treated as a broken fit, speed 1
+    expected = written("C4", "D4", "E4", "F4")
+    result = align(expected, sung(("C4", 0.0), ("D4", 4.0), ("E4", 8.0), ("F4", 12.0)), mode="free")
+    assert result["tempo_scale"] == 1.0
+
+
+def test_free_mode_outliers_do_not_tilt_the_line():
+    # Six notes exactly on a 0.5x line, two badly rushed: the median-of-slopes fit ignores them
+    expected = written("C4", "D4", "E4", "F4", "G4", "A4", "C4", "D4")
+    times = [0, 2, 4, 6, 8, 10, 11.0, 14]  # note 7 rushed by 1 s
+    times[3] = 5.0  # note 4 rushed by 1 s
+    names = ["C4", "D4", "E4", "F4", "G4", "A4", "C4", "D4"]
+    result = align(expected, sung(*zip(names, times)), mode="free")
+    assert result["tempo_scale"] == pytest.approx(0.5)
+
+
+def test_strict_mode_never_changes_speed():
+    expected = parse_score(score_path("c-major-scale"))
+    result = align(expected, at_speed(load_take("c-major-scale", "perfect")[0], 0.75), mode="strict")
+    assert result["tempo_scale"] == 1.0

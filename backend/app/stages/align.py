@@ -7,7 +7,7 @@ table method: docs/ALIGNMENT_EXPLAINED.md.
 Steps (later parts fill in the marked ones):
   1. drop rests (they never appear in pairs)
   2. first pass, pitch only: octave shift = the shift whose pairing costs least
-  3. time offset from that pass's near-right matches / tempo scale [3e: 1.0 for now]
+  3. the singer's clock from that pass's near-right matches: offset (strict), or offset + speed (free)
   4. fill the table (pitch + timing) and trace back
   5. split-note merge: an extra that is really a piece of its neighbouring match joins it
   6. near_id on extras
@@ -35,6 +35,10 @@ OCTAVE_SHIFTS = (0, -12, 12, -24, 24)
 OFFSET_PITCH_TOL = 0.5  # semitones: only in-tune / out-of-tune pairs vote; a wrong-note pair (> 50 cents,
 #                         stage 5's line) may be a wrong pairing from the timing-free first pass
 MIN_OFFSET_PAIRS = 3  # fewer voting pairs than this -> too little to trust, offset 0
+# Free mode also measures the singer's speed (tempo_scale = score seconds per sung second). Outside this
+# range the fit is treated as broken and we fall back to the strict-mode clock (speed 1, median offset).
+MIN_TEMPO_SCALE = 0.4
+MAX_TEMPO_SCALE = 2.5
 
 # Split-note merge (DECISIONS.md 4.4): stage 3 sometimes cuts one sung note in two (vibrato, a dip in
 # loudness, a scoop into the note). The extra piece joins its neighbouring match when it is:
@@ -49,20 +53,17 @@ PIECE_EXTRA_COST = 0.5  # extra cost for a sung note that looks like a piece of 
 
 
 def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
-    """mode: "strict" (against the click) or "free" (against the singer's own tempo; not built yet)."""
-    if mode != "strict":
-        raise AnalysisError(
-            "invalid_input", "Free tempo mode isn't available yet. Please use strict mode.", "align", 422
-        )
+    """mode: "free" (the singer's own tempo; the main mode) or "strict" (the score's tempo)."""
+    if mode not in ("free", "strict"):
+        raise AnalysisError("invalid_input", f"Unknown mode {mode!r}: use free or strict.", "align", 400)
 
     written = [n for n in expected_notes["notes"] if not n["is_rest"]]
     sung = sung_notes["notes"]
 
     octave_shift, first_pass = _choose_octave_shift(written, sung)
-    tempo_scale = 1.0  # 3e (score time = sung time x tempo_scale)
-    time_offset = _time_offset(written, sung, octave_shift, first_pass)
-    # Sung starts on the score's clock, in seconds. Seconds (not beats) because the score may change
-    # tempo: stage 1's onset_sec already follows every tempo mark.
+    time_offset, tempo_scale = _singer_clock(written, sung, octave_shift, first_pass, mode)
+    # Sung starts on the score's clock, in seconds: score time = (sung time - offset) x tempo_scale.
+    # Seconds (not beats) because the score may change tempo: onset_sec already follows every mark.
     sung_secs = [(s["start_sec"] - time_offset) * tempo_scale for s in sung]
 
     pairs, _ = _fill_and_trace(written, sung, sung_secs, octave_shift)
@@ -76,7 +77,7 @@ def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
 
     return {
         "octave_shift": octave_shift,
-        "tempo_scale": tempo_scale,
+        "tempo_scale": round(tempo_scale, 4),
         "time_offset_sec": round(time_offset, 4),
         "total_cost": round(total, 4),
         "pairs": pairs,
@@ -107,24 +108,47 @@ def _choose_octave_shift(written: list[dict], sung: list[dict]) -> tuple[int, li
     return best[1], best[2]
 
 
-def _time_offset(written: list[dict], sung: list[dict], octave_shift: int, first_pass: list[dict]) -> float:
-    """Seconds to subtract from sung times so they line up with the score.
+def _singer_clock(
+    written: list[dict], sung: list[dict], octave_shift: int, first_pass: list[dict], mode: str
+) -> tuple[float, float]:
+    """(time_offset_sec, tempo_scale) so that score time = (sung time - offset) x tempo_scale.
 
-    Each near-right match from the pitch-only first pass votes with (sung start - written start); the
-    median ignores a cough, a skipped note or a few wrong pairings. Works for uploads, scores that open
-    with rests, and recording delay alike.
+    Each near-right match from the pitch-only first pass gives a point (written start, sung start).
+    Strict: speed is the score's (scale 1); offset = median of (sung - written), which ignores a cough,
+    a skipped note or a few wrong pairings. Works for uploads, scores that open with rests, and
+    recording delay alike.
+    Free: fit a line sung = offset + slope x written through the points, outlier-resistant (Theil-Sen:
+    slope = median of the slopes between every two points, offset = median of the leftovers); the
+    singer's speed is tempo_scale = 1 / slope. Too few points or an absurd speed -> the strict clock.
     """
-    pairs = first_pass
+    points = _clock_points(written, sung, octave_shift, first_pass)
+    if len(points) < MIN_OFFSET_PAIRS:
+        return 0.0, 1.0
+    strict_clock = (median(s - w for w, s in points), 1.0)
+    if mode == "strict":
+        return strict_clock
+    slopes = [(s2 - s1) / (w2 - w1) for i, (w1, s1) in enumerate(points) for (w2, s2) in points[i + 1:] if w2 - w1 > 1e-9]
+    if not slopes:
+        return strict_clock
+    slope = median(slopes)
+    if not slope > 0 or not MIN_TEMPO_SCALE <= 1.0 / slope <= MAX_TEMPO_SCALE:
+        return strict_clock
+    offset = median(s - slope * w for w, s in points)
+    return offset, 1.0 / slope
+
+
+def _clock_points(written, sung, octave_shift, first_pass) -> list[tuple[float, float]]:
+    """(written onset_sec, sung start_sec) for each first-pass match within OFFSET_PITCH_TOL, in score order."""
     w_by_id = {w["id"]: w for w in written}
     s_by_id = {s["sid"]: s for s in sung}
-    votes = []
-    for p in pairs:
+    points = []
+    for p in first_pass:
         if p["type"] != "match":
             continue
         w, s = w_by_id[p["id"]], s_by_id[p["sids"][0]]
         if abs(s["midi"] - octave_shift - w["midi"]) <= OFFSET_PITCH_TOL:
-            votes.append(s["start_sec"] - w["onset_sec"])
-    return median(votes) if len(votes) >= MIN_OFFSET_PAIRS else 0.0
+            points.append((w["onset_sec"], s["start_sec"]))
+    return points
 
 
 def _fill_and_trace(

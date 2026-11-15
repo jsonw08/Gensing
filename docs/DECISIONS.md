@@ -185,7 +185,7 @@ All arrays have the same length.
 | Field | Type | Meaning |
 |---|---|---|
 | `octave_shift` | int | −24, −12, 0, +12 or +24 (±24: e.g. a soprano singing a bass line). Chosen by a pitch-only first pass run once per shift: the shift whose pairing costs least; on a tie the smallest shift. Stage 5 subtracts it from sung pitch. Non-octave shifts (another key) are not detected: that's nice-to-have "any-key transposition". |
-| `tempo_scale` | float | score time = sung time × `tempo_scale`. 1.0 in strict mode. |
+| `tempo_scale` | float | The singer's speed: score time = (sung time − `time_offset_sec`) × `tempo_scale` (0.75 = sang at ¾ of the written tempo). Always 1.0 in strict mode. Free mode: a line sung = offset + slope × written fitted through the same near-right pairs as the offset, outlier-resistant (slope = median of the slopes between every two points; offset = median of the leftovers); `tempo_scale` = 1 / slope. Fewer than 3 pairs, or a speed outside 0.4–2.5: falls back to the strict clock (1.0, median offset). One straight line for the whole take: gradual slowing is left to stage 5's local check. |
 | `time_offset_sec` | float | Subtracted from sung times before aligning: median of (sung start − written start) over near-right matches (within 0.5 semitone, i.e. not wrong notes) from a pitch-only first pass; 0 if fewer than 3. Covers upload lead-in silence and recording delay. `sung_notes` itself is not changed. |
 | `total_cost` | float | Debug only |
 | `pairs` | array | Score order; extras placed where they happened. **Rests never appear.** |
