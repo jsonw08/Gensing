@@ -70,7 +70,7 @@ def health() -> dict:
 async def analyze(
     musicxml: UploadFile = File(...),
     audio: UploadFile = File(...),  # always WAV: the frontend converts recordings/uploads first
-    mode: Literal["strict", "free"] = Form("strict"),
+    mode: Literal["strict", "free"] = Form("free"),  # free is the main mode (DECISIONS.md section 1)
     tempo_bpm: float | None = Form(None, gt=0),
     preset: Literal["default", "beginner", "advanced"] = Form("default"),
     countin_end_sec: float = Form(0.0, ge=0),

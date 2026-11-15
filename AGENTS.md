@@ -13,12 +13,20 @@ Last updated: 2026-11-14 (roles assigned, pytest added; before any real pipeline
 1. **This file**: context, reasoning, rules.
 2. **[`docs/DECISIONS.md`](docs/DECISIONS.md)**: the spec. Exact JSON fields, API, conventions, note ID rules. **The source of truth.** If this file and DECISIONS.md disagree, DECISIONS.md wins.
 3. **[`contracts/`](contracts/)**: one sample JSON per hand-off file, all consistent with each other.
-4. **[`docs/gensing.pdf`](docs/gensing.pdf)**: the original design notes (17 pages): pipeline, stages, scope, risks, nice-to-haves.
-5. **[`docs/Alignment Explained Costs, Dynamic Programming, and DTW.pdf`](docs/)**: stage 4 in depth (penalties, DP table, reference code, DTW as fallback).
-6. **[`docs/NICE_TO_HAVE.md`](docs/NICE_TO_HAVE.md)**: the live nice-to-have list (the PDF's 10, plus new ideas). Add new ideas there, not to the PDF.
+4. **[`docs/PIPELINE_NOTES.md`](docs/PIPELINE_NOTES.md)**: the design notes: pipeline, stages, scope, risks, nice-to-haves.
+5. **[`docs/ALIGNMENT_EXPLAINED.md`](docs/ALIGNMENT_EXPLAINED.md)**: stage 4 in depth (penalties, DP table, reference code, DTW as fallback).
+6. **[`docs/NICE_TO_HAVE.md`](docs/NICE_TO_HAVE.md)**: the live nice-to-have list (the original 10, plus new ideas). Add new ideas there.
+7. **`docs/gensing.pdf`, `docs/Alignment Explained Costs, Dynamic Programming, and DTW.pdf`**: the original
+   design notes as PDFs. **Frozen snapshots, never edited.** 4 and 5 started as exact Markdown copies of them.
 
-The PDFs are the original plan. DECISIONS.md refines them; where they differ, DECISIONS.md is newer
-and was agreed deliberately (each difference and its reason is listed in section 4 below).
+**Which to trust, newest first:** DECISIONS.md → this file → the Markdown notes (4, 5, 6) → the PDFs.
+
+- **Recent developments live only in the Markdown files.** Every change and new decision goes into
+  DECISIONS.md / this file / the Markdown notes, never the PDFs.
+- **Use the PDFs only for older context the Markdown files don't mention** (and for the original
+  layout and diagrams). If a PDF and a Markdown file disagree, the Markdown file is newer and wins.
+- DECISIONS.md refines the design notes; where they differ, DECISIONS.md is newer and was agreed
+  deliberately (each difference and its reason is listed in section 4 below).
 
 ---
 
@@ -29,8 +37,9 @@ uploads a MusicXML score, records themselves singing it (record first, analyze a
 feedback), and gets the sheet music back with every note colored: in tune, out of tune, wrong
 note, early/late, skipped, or extra. They also get an overall score (total + pitch, intonation,
 rhythm, completeness) and short AI coaching tips. One singing voice, no instruments, MusicXML
-input only. Two timing modes: **strict** (against a click track, build first) and **free**
-(against the singer's own tempo).
+input only. Two timing modes: **free** (the main mode and default: the singer's own tempo) and **strict**
+(against the score's tempo; the app plays only a one-bar count-in, no click while singing). See
+DECISIONS.md section 1.
 
 **The demo must show:** a colored score with the error types, plus the overall score. Everything
 else is secondary.
@@ -92,7 +101,8 @@ contracts/           *.sample.json for all six hand-offs + README
 samples/<piece>/     score.musicxml + takes/ (generated WAVs + answer keys)
 tools/synth_take.py  generates the test recordings
 tools/check_osmd_ids.mjs  proves stage 1 IDs match OSMD's (collectNoteIds() = the frontend's counting recipe)
-docs/                DECISIONS.md, NICE_TO_HAVE.md, the two design PDFs
+docs/                DECISIONS.md, NICE_TO_HAVE.md, PIPELINE_NOTES.md, ALIGNMENT_EXPLAINED.md (current);
+                     gensing.pdf + the alignment PDF (frozen originals, older context only)
 ```
 
 | Command (repo root) | Does |
@@ -104,6 +114,7 @@ docs/                DECISIONS.md, NICE_TO_HAVE.md, the two design PDFs
 | `npm test` | run the backend unit tests (pytest; extra args: `npm test -- -k score`) |
 | `npm run check:osmd-ids [-- <name>]` | proves stage 1 IDs == OSMD's IDs and every ID has a drawn notehead (real OSMD in Node via jsdom). `--osmd-defaults` shows the multi-rest problem. |
 | `npm run inspect:score -- <name> [--bars 3-5]` | stage 1 by eye: real MusicXML bars next to `parse_score` output, plus an independent raw-XML check (no args lists names; `all` checks every file). Not a pytest test. |
+| `npm run check:takes` | every test take through the real pipeline (stages 1-4 today), strict + free, vs its answer key |
 | `npm run synth` | regenerate all test takes (`-- --clean` for pure tones into `takes-clean/`) |
 | `cd frontend && npm run build && npm run lint` | type-check, build, lint (oxlint) |
 
@@ -147,7 +158,7 @@ that to `localhost:8000` (strips `/api`). Backend Python is run as `backend/.ven
 | `sung_notes`: `sid` from `s0`; pitch = median of middle 60%; `stability_cents` = std dev; optional `params` | Consistent 0-based numbering; scoops ignored; stage 5 needs an exact definition for "shaky"; params make tuning runs comparable |
 | `alignment`: `sid` → **`sids` list** on every pair | Split-note merge (stage 3 cut one note in two) needs several sung notes per match; one uniform shape |
 | `alignment`: `near_id` always set on extras, may be a **rest** | Frontend needs a place for the `+`; extra-during-rest is then just "near_id is a rest" |
-| `alignment`: rests never in `pairs`; `cost`/`total_cost` for debugging | Matches the alignment PDF's code; costs help tuning |
+| `alignment`: rests never in `pairs`; `cost`/`total_cost` for debugging | Matches ALIGNMENT_EXPLAINED.md's code; costs help tuning |
 | `results.notes`: **every** written note, not just problems | Frontend must color green notes too |
 | `results`: pitch `status` and `timing` are separate fields | A note can be flat *and* late |
 | `results`: dropped `direction` | Sign of `cents` already says flat/sharp; redundant fields drift apart |
@@ -217,7 +228,7 @@ few rest frames as voiced (conf ≈ 0.01, ~1% loudness). Stage 3's confidence cu
 
 **Verification**
 
-11. After changing stages 2–5, run every take in `samples/*/takes/` through the pipeline and compare against its `.answer.json`: `perfect` must stay all green, every planted mistake must still be caught. (A `tools/check_takes.py` script to automate this is planned but not written yet; it's a good thing to build once stages are real.)
+11. After changing stages 2–5, run every take in `samples/*/takes/` through the pipeline and compare against its `.answer.json`: `perfect` must stay all green, every planted mistake must still be caught. Automated: `npm run check:takes` (stages 1-4 today; add stage 5 verdicts when grading exists).
 12. Plot before tuning: the pitch curve (stage 2) and detected notes over it (stage 3) are the main debugging tools.
 13. Frontend: run `npm run build` and `npm run lint` in `frontend/`. Check note coloring against `contracts/` samples (real IDs from `c-major-scale`).
 
@@ -253,8 +264,8 @@ new note on a >0.5 semitone change held ≥50 ms, ~50 ms median filter, split re
 drop notes <80 ms, merge same-pitch neighbors with no real break. The most fragile stage; plot notes over the curve.
 
 **Stage 4, alignment (C)**: `align(expected_notes, sung_notes, mode) -> alignment`. Filter out rests; detect octave
-shift (most common sung−written gap rounded to −12/0/+12); free mode: scale times to the score's length;
-edit-distance DP (reference code in the alignment PDF); split-note merge; set `near_id` on extras. First unit test:
+shift (−24/−12/0/+12/+24: the shift whose pitch-only pairing costs least; DECISIONS.md 4.4); free mode: scale times to the score's length;
+edit-distance DP (reference code in `docs/ALIGNMENT_EXPLAINED.md`); split-note merge; set `near_id` on extras. First unit test:
 written C D E vs sung C E → match, skipped, match.
 
 **Stage 5, grading (C)**: `grade(alignment, expected_notes, sung_notes, mode, preset) -> results`. Subtract the
@@ -266,7 +277,8 @@ on the test takes.
 Anthropic SDK docs before writing the API call; don't guess SDK signatures.
 
 **Stage 7, frontend (A)**: Setup screen (upload MusicXML, mode/tempo/preset, or upload a recording), Record screen
-(one-bar count-in, click via Web Audio API, MediaRecorder for the mic, headphones; send the exact `countin_end_sec`),
+(one-bar count-in at the starting tempo via Web Audio API, then **no click** while singing; MediaRecorder for the mic;
+headphones optional; send the exact `countin_end_sec`),
 Results screen (colored score, score card, coach panel with clickable tips → highlight bars, optional pitch view).
 Convert all audio to WAV before upload. Note IDs: copy `collectNoteIds()` from `tools/check_osmd_ids.mjs`
 (already verified against stage 1; see DECISIONS.md section 3). **First task before any audio exists:** color every note from
@@ -284,12 +296,15 @@ click a note to hear it → pitch view → beginner/advanced presets → repeats
 PDFs/photos. Not yet ranked: choosing which part to sing (today: first part only).
 
 **If behind, cut in this order:** retry-a-bar, ask-the-coach, playback highlight → pitch view →
-free tempo mode → the LLM call (fallback covers it) → in-app recording (upload only).
+strict mode (keep free, the main mode) → the LLM call (fallback covers it) → in-app recording (upload only).
 **Never cut:** the colored score, the error types, the overall score.
 
 ---
 
 ## 7. Gotchas already found
+
+Musical cases the pipeline gets wrong (tempo changes, fermatas, ornaments, legato repeated notes, ...)
+are listed in **DECISIONS.md section 9, "Known limitations"**. Keep that list current.
 
 - **pYIN NaN → invalid JSON.** Always convert.
 - **22,050 Hz hop drift.** Use 16 kHz / hop 160.

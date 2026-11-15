@@ -11,7 +11,8 @@
     "synth": "backend/.venv/bin/python tools/synth_take.py",
     "test": "cd backend && .venv/bin/python -m pytest",
     "inspect:score": "backend/.venv/bin/python backend/tests/manual/inspect_score.py",
-    "check:osmd-ids": "node tools/check_osmd_ids.mjs"
+    "check:osmd-ids": "node tools/check_osmd_ids.mjs",
+    "check:takes": "backend/.venv/bin/python tools/check_takes.py"
   },
   "devDependencies": {
     "concurrently": "^10.0.7",
