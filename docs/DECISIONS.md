@@ -146,6 +146,7 @@ Top level: `title` (string|null), `tempo_bpm` (number: the first tempo, after an
 | `onset_sec`, `duration_sec` | float | Same in seconds. Every tempo mark in the score is followed (any part; on the same beat the sung part wins): seconds are added up stretch by stretch. |
 | `lyric` | string\|null | |
 | `render_ids` | string[] | Noteheads to color: `[id]`, or several for ties |
+| `fermata` | `true` | Optional, only on fermata entries (notes **or rests**). A fermata in **any** part counts (if the piano holds while the voice rests, the singer waits too); the entry containing the end of the held note is flagged. Stage 4 starts a new timing section after it. |
 
 ### 4.2 `pitch_track.json` (stage 2 → 3, 7)
 
@@ -186,7 +187,7 @@ All arrays have the same length.
 |---|---|---|
 | `octave_shift` | int | −24, −12, 0, +12 or +24 (±24: e.g. a soprano singing a bass line). Chosen by a pitch-only first pass run once per shift: the shift whose pairing costs least; on a tie the smallest shift. Stage 5 subtracts it from sung pitch. Non-octave shifts (another key) are not detected: that's nice-to-have "any-key transposition". |
 | `tempo_scale` | float | The singer's speed: score time = (sung time − `time_offset_sec`) × `tempo_scale` (0.75 = sang at ¾ of the written tempo). Always 1.0 in strict mode. Free mode: a line sung = offset + slope × written fitted through the same near-right pairs as the offset, outlier-resistant (slope = median of the slopes between every two points; offset = median of the leftovers); `tempo_scale` = 1 / slope. Fewer than 3 pairs, or a speed outside 0.4–2.5: falls back to the strict clock (1.0, median offset). One straight line for the whole take: gradual slowing is left to stage 5's local check. |
-| `time_offset_sec` | float | Subtracted from sung times before aligning: median of (sung start − written start) over near-right matches (within 0.5 semitone, i.e. not wrong notes) from a pitch-only first pass; 0 if fewer than 3. Covers upload lead-in silence and recording delay. `sung_notes` itself is not changed. |
+| `time_offset_sec` | float | Subtracted from sung times before aligning: median of (sung start − written start) over near-right matches (within 0.5 semitone, i.e. not wrong notes) from a pitch-only first pass; 0 if fewer than 3. Covers upload lead-in silence and recording delay. `sung_notes` itself is not changed. **Fermatas:** the singer's clock jumps by the hold, so the score is cut into sections after each `fermata` entry and each section gets its own offset (fewer than 3 near-right pairs in a section: it borrows the previous section's). This top-level value is the first section's; then every `match` also carries its own `time_offset_sec`. In free mode the speed is shared, fitted only from pairs within the same section. Scores without fermatas: one section, no per-match field. |
 | `total_cost` | float | Debug only |
 | `pairs` | array | Score order; extras placed where they happened. **Rests never appear.** |
 
@@ -261,7 +262,9 @@ Strict mode measures timing against the score's tempo (stage 1 onsets; the singe
 count-in). Free mode measures against a
 line fit through ~4 neighbors on each side. Both subtract the singer's median offset first
 (browser recording delay of 50–150 ms + consonant-before-vowel, or an upload's lead-in silence):
-that offset is `alignment.time_offset_sec`, so stage 4 and 5 use the same number.
+that offset is `alignment.time_offset_sec` (or the pair's own `time_offset_sec` when present, in
+scores with fermatas), so stage 4 and 5 use the same number. After a fermata the next notes are judged
+from where the singer came back in (like a conductor's new downbeat), not from the original timeline.
 
 **Score weights (first guess):** pitch 40% (% of notes on the right note), intonation 20% (avg
 cents off on right notes: 0 → 100, 50 → 0), rhythm 25% (% of matched notes on time),
@@ -412,7 +415,7 @@ update this list when one is fixed.
 
 | Case | What happens | Workaround / plan |
 |---|---|---|
-| **Fermatas** | Singer holds longer than written; in strict mode every later note looks late | Planned: stage 1 flags them, stage 4 measures the offset per section |
+| **Fermatas** (handled) | Each section between fermatas gets its own clock. A section with < 3 near-right notes borrows the previous section's offset, so a hold just before the last 1–2 notes still makes them look late. Coming back in late after a fermata isn't flagged (by design). | Fermatas on a barline (rare) aren't read |
 | **"rit." / "accel." text** (amount not written) | Strict mode marks the slowed/sped notes late/early | Use free mode for such pieces (it follows the singer's local pulse) |
 | **Fast runs, melismas** (notes under ~150 ms) | Stage 3 needs a pitch held ≥ 50 ms and drops pieces < 80 ms → notes blur: skips, odd pitches | Slow demo pieces; stage 3 tuning |
 | **Grace notes, trills, turns sung correctly** | Stage 1 skips grace notes (no ID) → the sung ornament shows as **extra** | Avoid in demo pieces |

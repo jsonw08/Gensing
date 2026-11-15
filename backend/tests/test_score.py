@@ -340,3 +340,54 @@ def test_dotted_quarter_tempo_change(tmp_path):
     # Dotted-quarter = 40 means 60 quarter notes per minute
     exp = parse_score(write_xml(tmp_path, [[metronome(120)] + [note("C", 4)] * 4, [metronome(40, dotted=True)] + [note("D", 4)] * 2]))
     assert [n["onset_sec"] for n in exp["notes"]] == [0, 0.5, 1, 1.5, 2, 3]
+
+
+# --------------------------------------------------------------------------- fermatas
+
+
+FERMATA = '<notations><fermata type="upright"/></notations>'
+
+
+def held(snippet: str) -> str:
+    """Put a fermata on a <note> snippet."""
+    return snippet.replace("</note>", FERMATA + "</note>", 1)
+
+
+def flagged(exp):
+    return [n["id"] for n in exp["notes"] if n.get("fermata")]
+
+
+def test_fermata_on_a_note_flags_only_that_entry(tmp_path):
+    exp = parse_score(write_xml(tmp_path, [[note("C", 4), note("D", 4), held(note("E", 4)), note("F", 4)]]))
+    assert flagged(exp) == ["m1-n2"]
+    assert all("fermata" not in n for n in exp["notes"] if n["id"] != "m1-n2")  # only fermata entries get the key
+    assert exp["notes"][2]["fermata"] is True
+
+
+def test_fermata_on_a_rest(tmp_path):
+    rest = "<note><rest/><duration>1</duration><voice>1</voice><type>quarter</type></note>"
+    exp = parse_score(write_xml(tmp_path, [[note("C", 4), note("D", 4), held(rest), note("F", 4)]]))
+    assert flagged(exp) == ["m1-n2"]
+
+
+def test_fermata_on_the_second_half_of_a_tied_note(tmp_path):
+    tie_start = ('<note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><tie type="start"/>'
+                 '<voice>1</voice><type>quarter</type><notations><tied type="start"/></notations></note>')
+    tie_stop = ('<note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><tie type="stop"/>'
+                '<voice>1</voice><type>quarter</type><notations><tied type="stop"/><fermata type="upright"/></notations></note>')
+    exp = parse_score(write_xml(tmp_path, [[note("C", 4), note("D", 4), note("E", 4), tie_start], [tie_stop] + [note("A", 4)] * 3]))
+    assert flagged(exp) == ["m1-n3"]  # the merged tied entry, whose render_ids include m2-n0
+
+
+def test_piano_fermata_while_the_voice_rests(tmp_path):
+    rest = "<note><rest/><duration>1</duration><voice>1</voice><type>quarter</type></note>"
+    piano = [[note("C", 3), note("C", 3), held(note("C", 3)), note("C", 3)]]
+    exp = parse_score(write_xml(tmp_path, [[note("C", 5), note("D", 5), rest, note("E", 5)]], extra_parts=[piano]))
+    assert flagged(exp) == ["m1-n2"]  # the singer waits for the pianist
+
+
+def test_long_piano_fermata_flags_the_voice_entry_where_it_ends(tmp_path):
+    half = "<note><pitch><step>C</step><octave>3</octave></pitch><duration>2</duration><voice>1</voice><type>half</type></note>"
+    piano = [[note("C", 3), note("C", 3), held(half)]]  # held from beat 2 to beat 4
+    exp = parse_score(write_xml(tmp_path, [[note("C", 5), note("D", 5), note("E", 5), note("F", 5)]], extra_parts=[piano]))
+    assert flagged(exp) == ["m1-n3"]  # the pause comes at the end of the held chord

@@ -7,7 +7,8 @@ table method: docs/ALIGNMENT_EXPLAINED.md.
 Steps (later parts fill in the marked ones):
   1. drop rests (they never appear in pairs)
   2. first pass, pitch only: octave shift = the shift whose pairing costs least
-  3. the singer's clock from that pass's near-right matches: offset (strict), or offset + speed (free)
+  3. the singer's clock from that pass's near-right matches: offset (strict), or offset + speed (free);
+     one offset per section when the score has fermatas (the singer's clock jumps by the hold)
   4. fill the table (pitch + timing) and trace back
   5. split-note merge: an extra that is really a piece of its neighbouring match joins it
   6. joined notes: a skipped repeated note that its neighbour's long sung note covers is a match too
@@ -66,15 +67,22 @@ def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
     written = [n for n in expected_notes["notes"] if not n["is_rest"]]
     sung = sung_notes["notes"]
 
+    section_of = _sections(expected_notes["notes"])
     octave_shift, first_pass = _choose_octave_shift(written, sung)
-    time_offset, tempo_scale = _singer_clock(written, sung, octave_shift, first_pass, mode)
-    # Sung starts on the score's clock, in seconds: score time = (sung time - offset) x tempo_scale.
-    # Seconds (not beats) because the score may change tempo: onset_sec already follows every mark.
-    sung_secs = [(s["start_sec"] - time_offset) * tempo_scale for s in sung]
+    offsets, tempo_scale = _singer_clock(written, sung, octave_shift, first_pass, mode, section_of)
+    sung_section = _sung_sections(sung, first_pass, section_of)
+    offset_of = {s["sid"]: offsets[sung_section[s["sid"]]] for s in sung}
+
+    def to_score(sid: str, t: float) -> float:
+        """Score time = (sung time - its section's offset) x tempo_scale. Seconds (not beats): the score
+        may change tempo, and onset_sec already follows every tempo mark."""
+        return (t - offset_of[sid]) * tempo_scale
+
+    sung_secs = [to_score(s["sid"], s["start_sec"]) for s in sung]
 
     pairs, _ = _fill_and_trace(written, sung, sung_secs, octave_shift)
     pairs = _merge_split_notes(pairs, written, sung, octave_shift)
-    pairs = _join_repeated_notes(pairs, written, sung, octave_shift, time_offset, tempo_scale)
+    pairs = _join_repeated_notes(pairs, written, sung, octave_shift, to_score)
     total = sum(p["cost"] for p in pairs)
 
     sec_of = {s["sid"]: t for s, t in zip(sung, sung_secs)}
@@ -82,10 +90,15 @@ def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
         if pair["type"] == "extra":
             pair["near_id"] = _near_id(expected_notes["notes"], sec_of[pair["sids"][0]])
 
+    if len({section_of[w["id"]] for w in written}) > 1:  # fermata sections: each match says its offset
+        for pair in pairs:
+            if pair["type"] == "match":
+                pair["time_offset_sec"] = round(offset_of[pair["sids"][0]], 4)
+
     return {
         "octave_shift": octave_shift,
         "tempo_scale": round(tempo_scale, 4),
-        "time_offset_sec": round(time_offset, 4),
+        "time_offset_sec": round(offsets[0], 4),
         "total_cost": round(total, 4),
         "pairs": pairs,
     }
@@ -115,10 +128,21 @@ def _choose_octave_shift(written: list[dict], sung: list[dict]) -> tuple[int, li
     return best[1], best[2]
 
 
+def _sections(all_notes: list[dict]) -> dict[str, int]:
+    """Section number of every written entry (notes and rests): starts at 0, +1 after each fermata."""
+    section, out = 0, {}
+    for n in all_notes:
+        out[n["id"]] = section
+        if n.get("fermata"):
+            section += 1
+    return out
+
+
 def _singer_clock(
-    written: list[dict], sung: list[dict], octave_shift: int, first_pass: list[dict], mode: str
-) -> tuple[float, float]:
-    """(time_offset_sec, tempo_scale) so that score time = (sung time - offset) x tempo_scale.
+    written: list[dict], sung: list[dict], octave_shift: int, first_pass: list[dict], mode: str,
+    section_of: dict[str, int],
+) -> tuple[list[float], float]:
+    """([offset per section], tempo_scale): score time = (sung time - its section's offset) x tempo_scale.
 
     Each near-right match from the pitch-only first pass gives a point (written start, sung start).
     Strict: speed is the score's (scale 1); offset = median of (sung - written), which ignores a cough,
@@ -127,25 +151,36 @@ def _singer_clock(
     Free: fit a line sung = offset + slope x written through the points, outlier-resistant (Theil-Sen:
     slope = median of the slopes between every two points, offset = median of the leftovers); the
     singer's speed is tempo_scale = 1 / slope. Too few points or an absurd speed -> the strict clock.
+    Fermatas: the singer's clock jumps by however long they held, so each section between fermatas gets
+    its own offset; the speed is shared, from slopes between points of the same section only (a jump
+    must not tilt it). A section with fewer than MIN_OFFSET_PAIRS points borrows the previous one's
+    offset (the first borrows the whole-take value). Without fermatas this is exactly one section.
     """
-    points = _clock_points(written, sung, octave_shift, first_pass)
+    n_sections = max(section_of.values(), default=0) + 1
+    points = _clock_points(written, sung, octave_shift, first_pass, section_of)
     if len(points) < MIN_OFFSET_PAIRS:
-        return 0.0, 1.0
-    strict_clock = (median(s - w for w, s in points), 1.0)
+        return [0.0] * n_sections, 1.0
+
+    def offsets_for(slope: float) -> list[float]:
+        whole = median(s - slope * w for w, s, _ in points)
+        out = []
+        for k in range(n_sections):
+            mine = [s - slope * w for w, s, sec in points if sec == k]
+            out.append(median(mine) if len(mine) >= MIN_OFFSET_PAIRS else (out[-1] if out else whole))
+        return out
+
     if mode == "strict":
-        return strict_clock
-    slopes = [(s2 - s1) / (w2 - w1) for i, (w1, s1) in enumerate(points) for (w2, s2) in points[i + 1:] if w2 - w1 > 1e-9]
-    if not slopes:
-        return strict_clock
-    slope = median(slopes)
+        return offsets_for(1.0), 1.0
+    slopes = [(s2 - s1) / (w2 - w1) for i, (w1, s1, k1) in enumerate(points) for (w2, s2, k2) in points[i + 1:]
+              if k1 == k2 and w2 - w1 > 1e-9]
+    slope = median(slopes) if slopes else 0.0
     if not slope > 0 or not MIN_TEMPO_SCALE <= 1.0 / slope <= MAX_TEMPO_SCALE:
-        return strict_clock
-    offset = median(s - slope * w for w, s in points)
-    return offset, 1.0 / slope
+        return offsets_for(1.0), 1.0
+    return offsets_for(slope), 1.0 / slope
 
 
-def _clock_points(written, sung, octave_shift, first_pass) -> list[tuple[float, float]]:
-    """(written onset_sec, sung start_sec) for each first-pass match within OFFSET_PITCH_TOL, in score order."""
+def _clock_points(written, sung, octave_shift, first_pass, section_of) -> list[tuple[float, float, int]]:
+    """(written onset_sec, sung start_sec, section) for each first-pass match within OFFSET_PITCH_TOL."""
     w_by_id = {w["id"]: w for w in written}
     s_by_id = {s["sid"]: s for s in sung}
     points = []
@@ -154,8 +189,20 @@ def _clock_points(written, sung, octave_shift, first_pass) -> list[tuple[float, 
             continue
         w, s = w_by_id[p["id"]], s_by_id[p["sids"][0]]
         if abs(s["midi"] - octave_shift - w["midi"]) <= OFFSET_PITCH_TOL:
-            points.append((w["onset_sec"], s["start_sec"]))
+            points.append((w["onset_sec"], s["start_sec"], section_of[w["id"]]))
     return points
+
+
+def _sung_sections(sung: list[dict], first_pass: list[dict], section_of: dict[str, int]) -> dict[str, int]:
+    """Section of every sung note: its first-pass match's section; an unmatched note takes the section of
+    the matched note sung just before it (or just after, if it comes first)."""
+    matched = {p["sids"][0]: section_of[p["id"]] for p in first_pass if p["type"] == "match"}
+    out, current = {}, None
+    for s in sung:
+        current = matched.get(s["sid"], current)
+        out[s["sid"]] = current
+    first = next((matched[s["sid"]] for s in sung if s["sid"] in matched), 0)
+    return {sid: (sec if sec is not None else first) for sid, sec in out.items()}
 
 
 def _fill_and_trace(
@@ -259,7 +306,7 @@ def _is_piece_of(extra: dict, match: dict, sung_by_sid, written, index_of, octav
     return all(here <= abs(pitch - m) for m in sides)
 
 
-def _join_repeated_notes(pairs, written, sung, octave_shift, time_offset, tempo_scale) -> list[dict]:
+def _join_repeated_notes(pairs, written, sung, octave_shift, to_score) -> list[dict]:
     """Turn a skipped note into a match sharing its neighbour's sung note when that one sung note
     really covers both written notes (same written pitch, in tune, lasts through >= JOIN_MIN_COVER of
     the skipped note on the score's clock). Left to right, so G G G sung as one note joins twice."""
@@ -280,8 +327,8 @@ def _join_repeated_notes(pairs, written, sung, octave_shift, time_offset, tempo_
             piece = sung_by_sid[pairs[nb]["sids"][-1 if nb < k else 0]]  # the piece nearest the skipped note
             if abs(piece["midi"] - octave_shift - written[i]["midi"]) > OFFSET_PITCH_TOL:
                 continue
-            start = (piece["start_sec"] - time_offset) * tempo_scale
-            end = (piece["end_sec"] - time_offset) * tempo_scale
+            start = to_score(piece["sid"], piece["start_sec"])
+            end = to_score(piece["sid"], piece["end_sec"])
             w0, w1 = written[i]["onset_sec"], written[i]["onset_sec"] + written[i]["duration_sec"]
             if min(end, w1) - max(start, w0) >= JOIN_MIN_COVER * written[i]["duration_sec"]:
                 cost = round(min(abs(piece["midi"] - octave_shift - written[i]["midi"]), PITCH_CAP), 4)

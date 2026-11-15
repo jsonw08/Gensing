@@ -126,6 +126,8 @@ def check_invariants(expected, sung_notes, result):
     # shapes
     for p in result["pairs"]:
         optional = ({"near_id"} if p["type"] == "extra" else set()) | ({"joined"} if p.get("joined") else set())
+        if p["type"] == "match" and "time_offset_sec" in p:  # only in scores with fermata sections
+            optional |= {"time_offset_sec"}
         assert set(p) == {"type", "id", "sids", "cost"} | optional
         assert len(p["sids"]) >= 1 if p["type"] == "match" else len(p["sids"]) == {"skipped": 0, "extra": 1}[p["type"]]
     assert result["total_cost"] == pytest.approx(sum(p["cost"] for p in result["pairs"]), abs=1e-3)
@@ -629,3 +631,82 @@ def test_join_coverage_uses_the_score_clock_for_a_fast_singer():
     result = align(expected, sung_notes, mode="free")
     assert result["tempo_scale"] == pytest.approx(1.5)
     assert by_id(result)["m1-n3"].get("joined") is True
+
+
+# --------------------------------------------------------------------------- fermatas (sections)
+
+
+def with_fermata(expected, *ids):
+    for n in expected["notes"]:
+        if n["id"] in ids:
+            n["fermata"] = True
+    return expected
+
+
+def test_fermata_hold_does_not_make_later_notes_late():
+    # Written C D E(fermata) F G A B C, one beat each at 60 bpm. The singer holds E 1.5 s longer.
+    expected = with_fermata(written("C4", "D4", "E4", "F4", "G4", "A4", "C6", "C4"), "m1-n2")
+    times = [0, 1, 2, 4.5, 5.5, 6.5, 7.5, 8.5]
+    names = ["C4", "D4", "E4", "F4", "G4", "A4", "C6", "C4"]
+    sung_notes = sung(*zip(names, times))
+    result = align(expected, sung_notes)
+    check_invariants(expected, sung_notes, result)
+    assert [p["type"] for p in result["pairs"]] == ["match"] * 8
+    assert max(p["cost"] for p in result["pairs"]) < 1e-6
+    assert result["time_offset_sec"] == 0.0
+    assert [p["time_offset_sec"] for p in result["pairs"]] == [0.0] * 3 + [1.5] * 5
+
+
+def test_without_the_fermata_flag_the_same_take_looks_off():
+    # Same take, no fermata in the score: one offset for everything, so one side is off by the hold
+    expected = written("C4", "D4", "E4", "F4", "G4", "A4", "C6", "C4")
+    sung_notes = sung(*zip(["C4", "D4", "E4", "F4", "G4", "A4", "C6", "C4"], [0, 1, 2, 4.5, 5.5, 6.5, 7.5, 8.5]))
+    result = align(expected, sung_notes)
+    assert max(p["cost"] for p in result["pairs"]) == pytest.approx(0.75)  # 1.5 beats x 0.5
+    assert all("time_offset_sec" not in p for p in result["pairs"])
+
+
+def test_fermata_in_free_mode_shares_one_speed():
+    # Singer at 0.8x speed (each written second takes 1.25 s) and holds the fermata 1.2 s extra
+    expected = with_fermata(written("C4", "D4", "E4", "F4", "G4", "A4", "C6", "C4"), "m1-n2")
+    times = [t * 1.25 + (1.2 if t >= 3 else 0) for t in range(8)]
+    sung_notes = sung(*zip(["C4", "D4", "E4", "F4", "G4", "A4", "C6", "C4"], times))
+    result = align(expected, sung_notes, mode="free")
+    assert result["tempo_scale"] == pytest.approx(0.8)
+    assert [p["time_offset_sec"] for p in result["pairs"]] == [0.0] * 3 + [1.2] * 5
+    assert max(p["cost"] for p in result["pairs"]) < 1e-6
+
+
+def test_short_section_after_a_fermata_borrows_the_previous_offset():
+    # Fermata on G; only two notes after it: too few to measure, so they keep the first section's clock
+    expected = with_fermata(written("C4", "D4", "E4", "F4", "G4", "A4", "C6"), "m1-n4")
+    sung_notes = sung(*zip(["C4", "D4", "E4", "F4", "G4", "A4", "C6"], [0, 1, 2, 3, 4, 6.5, 7.5]))
+    result = align(expected, sung_notes)
+    assert [p["type"] for p in result["pairs"]] == ["match"] * 7
+    assert [p["time_offset_sec"] for p in result["pairs"]] == [0.0] * 7
+
+
+def test_fermata_on_the_last_note_changes_nothing():
+    expected = with_fermata(written("C4", "D4", "E4", "F4"), "m1-n3")
+    sung_notes = sung(*zip(["C4", "D4", "E4", "F4"], [0, 1, 2, 3]))
+    result = align(expected, sung_notes)
+    assert result == align(written("C4", "D4", "E4", "F4"), sung_notes)
+
+
+def test_fermata_on_a_rest_singer_waits_longer():
+    expected = with_fermata(written("C4", "D4", "E4", None, "F4", "G4", "A4"), "m1-n3")
+    sung_notes = sung(*zip(["C4", "D4", "E4", "F4", "G4", "A4"], [0, 1, 2, 6, 7, 8]))  # waited 2 s extra
+    result = align(expected, sung_notes)
+    check_invariants(expected, sung_notes, result)
+    assert [p["time_offset_sec"] for p in result["pairs"]] == [0.0] * 3 + [2.0] * 3
+    assert max(p["cost"] for p in result["pairs"]) < 1e-6
+
+
+def test_joined_notes_use_their_sections_clock():
+    # E has a fermata held 1 s extra. After it, the long G (sung 4.0-5.4 s) is score time 3.0-4.4 s:
+    # it covers only 0.4 of the second G (4-5 s) -> skipped. With the first section's clock it would
+    # wrongly look like full cover.
+    expected = with_fermata(written("C4", "D4", "E4", "G4", "G4", "A4", "C6"), "m1-n2")
+    sung_notes = notes_at((60, 0, 0.8), (62, 1, 1.8), (64, 2, 3.8), (67, 4.0, 5.4), (69, 6, 6.8), (84, 7, 7.8))
+    result = align(expected, sung_notes)
+    assert by_id(result)["m1-n4"]["type"] == "skipped"

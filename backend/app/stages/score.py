@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
-from music21 import converter, tempo
+from music21 import converter, expressions, tempo
 
 from app.errors import AnalysisError
 
@@ -66,6 +66,8 @@ def parse_score(musicxml_path: str | Path, tempo_bpm: float | None = None) -> di
 
     if not any(not n["is_rest"] for n in notes):
         raise AnalysisError("invalid_musicxml", "The score has no notes to sing.", "score", 400)
+
+    _mark_fermatas(notes, parts)
 
     for n in notes:  # seconds from beats once, after ties have summed their durations
         n["onset_beats"] = round(n["onset_beats"], ROUND)
@@ -190,3 +192,25 @@ def _entry(note_id, measure, index, midi, name, onset_beats, duration_beats, lyr
         "lyric": lyric,
         "render_ids": [note_id],
     }
+
+
+def _mark_fermatas(notes: list[dict], parts) -> None:
+    """Add "fermata": true to the sung entries (notes or rests) where the music holds.
+
+    A fermata in ANY part counts: if the piano holds while the voice rests, the singer waits too. The
+    pause happens at the end of the held note, so the entry containing that moment is flagged (a long
+    piano fermata over several voice notes flags the last one). Only fermata entries get the key.
+    """
+    for part in parts:
+        for el in part.recurse().notesAndRests:
+            if el.duration.isGrace or not any(isinstance(e, expressions.Fermata) for e in el.expressions):
+                continue
+            try:
+                start = float(el.getOffsetInHierarchy(part))
+            except Exception:  # not reachable from the part (shouldn't happen); skip it
+                continue
+            moment = start + float(el.quarterLength) - 1e-6  # just before the held note ends
+            for n in notes:
+                if n["onset_beats"] <= moment < n["onset_beats"] + n["duration_beats"]:
+                    n["fermata"] = True
+                    break
