@@ -48,12 +48,13 @@ export function scheduleClicks(ctx: AudioContext, startAt: number, count: number
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.frequency.value = i === 0 ? 1760 : 1175 // accented downbeat
+    // Louder and a little longer than a bare blip, so it's easy to hear on laptop speakers.
     gain.gain.setValueAtTime(0.0001, t)
-    gain.gain.exponentialRampToValueAtTime(0.6, t + 0.002)
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.06)
+    gain.gain.exponentialRampToValueAtTime(0.9, t + 0.002)
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.11)
     osc.connect(gain).connect(bus)
     osc.start(t)
-    osc.stop(t + 0.07)
+    osc.stop(t + 0.12)
   }
   return () => bus.disconnect()
 }
