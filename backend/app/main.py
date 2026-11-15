@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.errors import AnalysisError  # stages raise it; defined in app/errors.py to avoid a circular import
+from app.stages.feedback import generate_feedback, rule_based_feedback
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 CONTRACTS_DIR = BACKEND_DIR.parent / "contracts"
@@ -90,6 +91,14 @@ async def analyze(
 
 @app.post("/feedback")
 async def feedback(results: dict = Body(...)) -> dict:
-    # TODO: replace with feedback.generate_feedback(results), which falls back to
-    # feedback.rule_based_feedback(results) on any failure. Never return an error here.
-    return load_sample("feedback")
+    """Stage 6. Body = results object (until stage 5 is live, POST contracts/results.sample.json).
+
+    Always 200: Claude via generate_feedback, or rule_based_feedback on any failure.
+    """
+    try:
+        return generate_feedback(results)
+    except Exception:
+        try:
+            return rule_based_feedback(results)
+        except Exception:
+            return load_sample("feedback")

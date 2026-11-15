@@ -173,7 +173,7 @@ that to `localhost:8000` (strips `/api`). Backend Python is run as `backend/.ven
 | Frontend **always sends WAV** | Browsers record WebM/MP4; librosa needs ffmpeg for those. Converting in the browser (Web Audio API) means one format and no ffmpeg on anyone's laptop. |
 | Error shape `{"error": {code, message, stage}}`; 400 / 422 / 500 | One shape to handle; `stage` tells you whose code failed. Raise `AnalysisError` from `app.errors` (own module: `main` imports the stages, so importing from `main` would be circular). |
 | `/feedback` always returns 200, falls back to rules | The demo survives Wi-Fi or API failure |
-| Claude API, model `claude-opus-5-5`, low effort, structured output | The team chose Claude. Structured output guarantees the feedback JSON shape, so only the "bars exist" check remains. Switch to a faster model only if latency is a real problem. |
+| Claude API, model `claude-sonnet-5-5`, low effort, structured output | The team chose Claude. Structured output guarantees the feedback JSON shape, so only the "bars exist" check remains. Switched from Opus to Sonnet for lower latency/cost on this short task. |
 | Key in `backend/.env` (`ANTHROPIC_API_KEY`), loaded by `python-dotenv` in `main.py` | Never committed; `.env.example` documents it |
 
 ### 4.4 Test recordings (`tools/synth_take.py`, DECISIONS.md section 7)
