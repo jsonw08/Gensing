@@ -422,3 +422,39 @@ def test_split_with_octave_down_upload_silence_and_jitter(piece):
     assert result["octave_shift"] == -12
     assert {p["type"] for p in result["pairs"]} == {"match"}
     assert sum(len(p["sids"]) == 2 for p in result["pairs"]) == 2
+
+
+
+# --------------------------------------------------------------------------- tempo changes
+
+
+def written_tempo_change():
+    """C D at 60 bpm (1 s per beat), then E F G at 120 bpm (0.5 s per beat), then a rest, then A."""
+    spec = [("C4", 0, 1), ("D4", 1, 1), ("E4", 2, 0.5), ("F4", 2.5, 0.5), ("G4", 3, 0.5), (None, 3.5, 0.5), ("A4", 4, 0.5)]
+    notes = [{"id": f"m1-n{i}", "measure": 1, "index": i, "is_rest": n is None, "midi": None if n is None else NAMES[n],
+              "name": n, "onset_beats": float(i), "duration_beats": 1.0, "onset_sec": float(t), "duration_sec": float(d),
+              "lyric": None, "render_ids": [f"m1-n{i}"]} for i, (n, t, d) in enumerate(spec)]
+    return {"title": None, "tempo_bpm": 60.0, "beat_unit": "quarter", "notes": notes}
+
+
+def test_tempo_change_sung_exactly_costs_nothing():
+    sung_notes = sung(("C4", 0.0), ("D4", 1.0), ("E4", 2.0), ("F4", 2.5), ("G4", 3.0), ("A4", 4.0))
+    result = align(written_tempo_change(), sung_notes)
+    assert [p["type"] for p in result["pairs"]] == ["match"] * 6
+    assert max(p["cost"] for p in result["pairs"]) == 0
+    assert result["time_offset_sec"] == 0
+
+
+def test_timing_term_uses_the_local_tempo():
+    # 0.25 s late is half a beat at 120 bpm (cost 0.25), a quarter beat at 60 bpm (cost 0.125)
+    sung_notes = sung(("C4", 0.25), ("D4", 1.0), ("E4", 2.0), ("F4", 2.75), ("G4", 3.0), ("A4", 4.0))
+    costs = {p["id"]: p["cost"] for p in align(written_tempo_change(), sung_notes)["pairs"]}
+    assert costs["m1-n0"] == pytest.approx(0.125)
+    assert costs["m1-n3"] == pytest.approx(0.25)
+
+
+def test_near_id_after_a_tempo_change():
+    # An extra at 3.6 s falls in the rest (3.5-4.0 s); with one tempo (60 bpm) it would land on beat 3.6
+    sung_notes = sung(("C4", 0.0), ("D4", 1.0), ("E4", 2.0), ("F4", 2.5), ("G4", 3.0), ("C6", 3.6), ("A4", 4.0))
+    extra = next(p for p in align(written_tempo_change(), sung_notes)["pairs"] if p["type"] == "extra")
+    assert extra["near_id"] == "m1-n5"

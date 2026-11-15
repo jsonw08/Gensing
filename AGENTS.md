@@ -300,6 +300,9 @@ free tempo mode → the LLM call (fallback covers it) → in-app recording (uplo
 
 ## 7. Gotchas already found
 
+Musical cases the pipeline gets wrong (tempo changes, fermatas, ornaments, legato repeated notes, ...)
+are listed in **DECISIONS.md section 9, "Known limitations"**. Keep that list current.
+
 - **pYIN NaN → invalid JSON.** Always convert.
 - **22,050 Hz hop drift.** Use 16 kHz / hop 160.
 - **Browser audio isn't WAV.** Convert in the frontend.

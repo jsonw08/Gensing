@@ -76,7 +76,8 @@ compares against this list.
    (C4 = 60), start and length in beats, rest or not, lyric.
 3. Tied notes: merge into one sung note, keep both IDs in `render_ids`. Grace notes: skip. Rests:
    keep, flagged, so stage 4 can catch singing during a rest.
-4. Convert beats to seconds. At 80 BPM one beat = 0.75 s. Assume a single tempo.
+4. Convert beats to seconds. At 80 BPM one beat = 0.75 s. Assume a single tempo. *(Changed: every tempo
+   mark is followed; see DECISIONS.md 4.1.)*
 
 **Output:** `expected_notes.json`. The format is ours, not music21's; change fields as needed.
 

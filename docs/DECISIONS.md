@@ -121,7 +121,7 @@ Build against the samples until the real stage exists.
 
 ### 4.1 `expected_notes.json` (stage 1 → 4, 5, 6, 7)
 
-Top level: `title` (string|null), `tempo_bpm` (number, the one actually used), `beat_unit`
+Top level: `title` (string|null), `tempo_bpm` (number: the first tempo, after any override; later tempo marks are followed in `onset_sec`), `beat_unit`
 (always `"quarter"`), `notes` (every note **and rest**, in time order).
 
 | Field | Type | Meaning |
@@ -133,7 +133,7 @@ Top level: `title` (string|null), `tempo_bpm` (number, the one actually used), `
 | `midi` | int\|null | null for rests |
 | `name` | string\|null | As written (`"F#4"`); null for rests |
 | `onset_beats`, `duration_beats` | float | From the start of the piece |
-| `onset_sec`, `duration_sec` | float | Same in seconds. Single tempo assumed. |
+| `onset_sec`, `duration_sec` | float | Same in seconds. Every tempo mark in the score is followed (any part; on the same beat the sung part wins): seconds are added up stretch by stretch. |
 | `lyric` | string\|null | |
 | `render_ids` | string[] | Noteheads to color: `[id]`, or several for ties |
 
@@ -205,7 +205,8 @@ ornaments sung correctly (stage 1 skips grace notes, so they show as extras), an
 error (two written notes joined into one sung note shows as a skip).
 
 **Costs (starting values, tune on test takes):** pair = semitones apart (capped at 4) + 0.5 ×
-beats apart; skip = extra = 3. A 1–2 semitone error must cost less than skip + extra (6), so a
+beats apart (seconds apart × that written note's own beats per second, so tempo changes are
+respected); skip = extra = 3. A 1–2 semitone error must cost less than skip + extra (6), so a
 wrong-but-present note is reported as "wrong note", not skip + extra.
 
 **DTW fallback:** only if stage 3 proves unreliable. DTW would also output its own
@@ -280,7 +281,7 @@ Multipart form:
 | `musicxml` | file | `.musicxml`, `.xml`, `.mxl`. Any saved file name works: stage 1 reads by content (a zip = compressed `.mxl`). |
 | `audio` | file | **Always WAV.** Browsers record WebM (Chrome) or MP4 (Safari); librosa can't read those without ffmpeg. The frontend converts any recording or upload to WAV with the Web Audio API first. |
 | `mode` | `strict` \| `free` | default `strict` |
-| `tempo_bpm` | number, optional | missing = the score's marking. Must be > 0 (validate in the endpoint: `Form(None, gt=0)`). |
+| `tempo_bpm` | number, optional | missing = the score's marking. Given: every tempo mark is scaled by the same factor so the first one becomes this (80 → 120 later becomes 120 → 180). Must be > 0 (validate in the endpoint: `Form(None, gt=0)`). |
 | `preset` | `default` \| `beginner` \| `advanced` | default `default` |
 | `countin_end_sec` | number | where beat 1 is in the recording; 0 for uploads |
 
@@ -387,3 +388,27 @@ The list (with details and owners) lives in [`NICE_TO_HAVE.md`](NICE_TO_HAVE.md)
 retry-a-bar, "ask the coach", playback highlight → pitch view → free tempo mode (keep strict) →
 the LLM call (fallback covers it) → in-app recording (upload only).
 **Never cut:** the colored score, the error types, the overall score.
+
+---
+
+## 9. Known limitations
+
+What the pipeline gets wrong or doesn't check today. Pick demo pieces and recordings around these;
+update this list when one is fixed.
+
+| Case | What happens | Workaround / plan |
+|---|---|---|
+| **Fermatas** | Singer holds longer than written; in strict mode every later note looks late | Planned: stage 1 flags them, stage 4 measures the offset per section |
+| **"rit." / "accel." text** (amount not written) | Strict mode marks the slowed/sped notes late/early | Use free mode for such pieces (it follows the singer's local pulse) |
+| **Repeated same-pitch notes sung legato** (G G joined by stage 3) | One sung note for two written ones → the second shows as **skipped** | Planned: stage 4 "joined notes" fix |
+| **Fast runs, melismas** (notes under ~150 ms) | Stage 3 needs a pitch held ≥ 50 ms and drops pieces < 80 ms → notes blur: skips, odd pitches | Slow demo pieces; stage 3 tuning |
+| **Grace notes, trills, turns sung correctly** | Stage 1 skips grace notes (no ID) → the sung ornament shows as **extra** | Avoid in demo pieces |
+| **Slides between notes** (portamento) | May become a short in-between extra, or make the next note look early | Split-note merge covers part of it |
+| **Note length / releases** | Only note **starts** are graded; cutting a note short or holding into a rest isn't caught | Possible stage 5 addition |
+| **Repeats, endings, D.C.** | Not unfolded: the second pass shows as extras | Nice-to-have #4; demo pieces without repeats |
+| **Other parts / divisi** | First part, voice 1, top note only | Nice-to-have "choose which part to sing" |
+| **Singing in another key** (not an octave) | Every note "wrong": only octave shifts (±12, ±24) are detected | Nice-to-have #11 (play the starting pitch); #8 any-key transposition |
+| **Switching octave mid-piece** | One shift for the whole recording → the other-octave notes are "wrong note, sang X" | Accepted (it is what they sang) |
+| **Coming in a whole bar late, then staying in time** (strict) | The median offset removes it, so everything looks on time | Stage 5 decision (could report the offset) |
+| **Notes outside C2–C6** (65–1050 Hz) | Not heard → skipped | Rare outside opera |
+| **Lyrics / diction, tone, breathing** | Not checked at all | Nice-to-have #9 |

@@ -287,3 +287,56 @@ def test_file_read_by_content_not_name(tmp_path, zipped, name):
 def test_mxl_without_container_file(tmp_path):
     mxl = make_mxl(tmp_path / "bare.mxl", with_container=False)
     assert parse_score(mxl)["notes"] == parse_score(score_path("edge-cases"))["notes"]
+
+
+
+# --------------------------------------------------------------------------- tempo changes
+
+
+def metronome(bpm, dotted=False):
+    dot = "<beat-unit-dot/>" if dotted else ""
+    return (f"<direction><direction-type><metronome><beat-unit>quarter</beat-unit>{dot}<per-minute>{bpm}</per-minute>"
+            f"</metronome></direction-type><sound tempo=\"{bpm * (1.5 if dotted else 1)}\"/></direction>")
+
+
+def test_tempo_change_at_a_barline(tmp_path):
+    # 60 bpm for bar 1 (1 s per beat), 120 bpm from bar 2 (0.5 s per beat)
+    exp = parse_score(write_xml(tmp_path, [[metronome(60)] + [note("C", 4)] * 4, [metronome(120)] + [note("D", 4)] * 4]))
+    assert exp["tempo_bpm"] == 60
+    assert [n["onset_sec"] for n in exp["notes"]] == [0, 1, 2, 3, 4, 4.5, 5, 5.5]
+    assert [n["duration_sec"] for n in exp["notes"]] == [1] * 4 + [0.5] * 4
+    assert [n["onset_beats"] for n in exp["notes"]] == list(range(8))  # beats never change
+
+
+def test_tempo_change_in_the_middle_of_a_bar_and_a_note_across_it(tmp_path):
+    # 60 bpm; a half note on beats 0-2 of bar 2, then 120 bpm from beat 2 of bar 2
+    half = "<note><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type></note>"
+    bars = [[metronome(60)] + [note("C", 4)] * 4, [half, metronome(120), note("F", 4), note("G", 4)]]
+    exp = parse_score(write_xml(tmp_path, bars))
+    assert [n["onset_sec"] for n in exp["notes"]] == [0, 1, 2, 3, 4, 6, 6.5]
+    assert exp["notes"][4]["duration_sec"] == 2  # the half note is all at 60 bpm
+
+
+def test_override_scales_every_tempo_mark(tmp_path):
+    exp = parse_score(write_xml(tmp_path, [[metronome(60)] + [note("C", 4)] * 4, [metronome(120)] + [note("D", 4)] * 4]),
+                      tempo_bpm=120)
+    assert exp["tempo_bpm"] == 120
+    assert [n["onset_sec"] for n in exp["notes"]] == [0, 0.5, 1, 1.5, 2, 2.25, 2.5, 2.75]  # 120 then 240
+
+
+def test_tempo_change_on_the_piano_part_counts(tmp_path):
+    piano = [[metronome(60)] + [note("C", 3)] * 4, [metronome(120)] + [note("C", 3)] * 4]
+    exp = parse_score(write_xml(tmp_path, [[note("C", 5)] * 4, [note("D", 5)] * 4], extra_parts=[piano]))
+    assert [n["onset_sec"] for n in exp["notes"]] == [0, 1, 2, 3, 4, 4.5, 5, 5.5]
+
+
+def test_same_beat_marks_on_two_parts_sung_part_wins(tmp_path):
+    piano = [[metronome(100)] + [note("C", 3)] * 4]
+    exp = parse_score(write_xml(tmp_path, [[metronome(60)] + [note("C", 5)] * 4], extra_parts=[piano]))
+    assert exp["tempo_bpm"] == 60 and exp["notes"][1]["onset_sec"] == 1
+
+
+def test_dotted_quarter_tempo_change(tmp_path):
+    # Dotted-quarter = 40 means 60 quarter notes per minute
+    exp = parse_score(write_xml(tmp_path, [[metronome(120)] + [note("C", 4)] * 4, [metronome(40, dotted=True)] + [note("D", 4)] * 2]))
+    assert [n["onset_sec"] for n in exp["notes"]] == [0, 0.5, 1, 1.5, 2, 3]

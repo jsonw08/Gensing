@@ -57,21 +57,22 @@ def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
 
     written = [n for n in expected_notes["notes"] if not n["is_rest"]]
     sung = sung_notes["notes"]
-    beats_per_sec = expected_notes["tempo_bpm"] / 60.0
 
     octave_shift, first_pass = _choose_octave_shift(written, sung)
     tempo_scale = 1.0  # 3e (score time = sung time x tempo_scale)
     time_offset = _time_offset(written, sung, octave_shift, first_pass)
-    sung_beats = [(s["start_sec"] - time_offset) * tempo_scale * beats_per_sec for s in sung]
+    # Sung starts on the score's clock, in seconds. Seconds (not beats) because the score may change
+    # tempo: stage 1's onset_sec already follows every tempo mark.
+    sung_secs = [(s["start_sec"] - time_offset) * tempo_scale for s in sung]
 
-    pairs, _ = _fill_and_trace(written, sung, sung_beats, octave_shift)
+    pairs, _ = _fill_and_trace(written, sung, sung_secs, octave_shift)
     pairs = _merge_split_notes(pairs, written, sung, octave_shift)
     total = sum(p["cost"] for p in pairs)
 
-    beat_of = {s["sid"]: b for s, b in zip(sung, sung_beats)}
+    sec_of = {s["sid"]: t for s, t in zip(sung, sung_secs)}
     for pair in pairs:
         if pair["type"] == "extra":
-            pair["near_id"] = _near_id(expected_notes["notes"], beat_of[pair["sids"][0]])
+            pair["near_id"] = _near_id(expected_notes["notes"], sec_of[pair["sids"][0]])
 
     return {
         "octave_shift": octave_shift,
@@ -83,11 +84,14 @@ def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
 
 
 def pair_cost(
-    written: dict, sung_midi: float, sung_beat: float, octave_shift: int = 0, beat_weight: float = BEAT_WEIGHT
+    written: dict, sung_midi: float, sung_sec: float, octave_shift: int = 0, beat_weight: float = BEAT_WEIGHT
 ) -> float:
-    """Semitones apart (after the octave shift, capped) + a little for being apart in time."""
+    """Semitones apart (after the octave shift, capped) + a little for being apart in time.
+    Time is measured in beats at this written note's own tempo (the score may change tempo)."""
     semitones = min(abs(sung_midi - octave_shift - written["midi"]), PITCH_CAP)
-    return semitones + beat_weight * abs(sung_beat - written["onset_beats"])
+    beats_per_sec = written["duration_beats"] / written["duration_sec"] if written["duration_sec"] > 0 else 0.0
+    beats_apart = abs(sung_sec - written["onset_sec"]) * beats_per_sec
+    return semitones + beat_weight * beats_apart
 
 
 def _choose_octave_shift(written: list[dict], sung: list[dict]) -> tuple[int, list[dict]]:
@@ -126,7 +130,7 @@ def _time_offset(written: list[dict], sung: list[dict], octave_shift: int, first
 def _fill_and_trace(
     written: list[dict],
     sung: list[dict],
-    sung_beats: list[float],
+    sung_secs: list[float],
     octave_shift: int,
     beat_weight: float = BEAT_WEIGHT,
 ):
@@ -143,7 +147,7 @@ def _fill_and_trace(
                 continue
             options = []
             if i > 0 and j > 0:  # pair written i-1 with sung j-1 (diagonal)
-                c = pair_cost(written[i - 1], sung[j - 1]["midi"], sung_beats[j - 1], octave_shift, beat_weight)
+                c = pair_cost(written[i - 1], sung[j - 1]["midi"], sung_secs[j - 1], octave_shift, beat_weight)
                 options.append((table[i - 1][j - 1] + c, "match", c))
             if i > 0:  # written i-1 skipped (from above)
                 options.append((table[i - 1][j] + SKIP_COST, "skipped", SKIP_COST))
@@ -167,12 +171,12 @@ def _fill_and_trace(
     return pairs[::-1], table[n][m]
 
 
-def _near_id(all_notes: list[dict], beat: float) -> str:
-    """The written note or rest whose span contains `beat`, else the one with the nearest onset."""
+def _near_id(all_notes: list[dict], sec: float) -> str:
+    """The written note or rest whose span (seconds) contains `sec`, else the one with the nearest onset."""
     for n in all_notes:
-        if n["onset_beats"] <= beat < n["onset_beats"] + n["duration_beats"]:
+        if n["onset_sec"] <= sec < n["onset_sec"] + n["duration_sec"]:
             return n["id"]
-    return min(all_notes, key=lambda n: abs(n["onset_beats"] - beat))["id"]
+    return min(all_notes, key=lambda n: abs(n["onset_sec"] - sec))["id"]
 
 
 def _looks_like_piece(sung: list[dict], j: int) -> bool:

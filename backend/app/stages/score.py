@@ -23,15 +23,18 @@ ROUND = 6  # decimals for beats/seconds: keeps triplets readable, avoids 0.75000
 
 
 def parse_score(musicxml_path: str | Path, tempo_bpm: float | None = None) -> dict:
-    """Parse the first part, voice 1, with music21. If tempo_bpm is None, use the score's marking."""
+    """Parse the first part, voice 1, with music21.
+
+    Tempo: every metronome mark in the score is followed (seconds are added up piece by piece). If
+    tempo_bpm is given, every mark is scaled by the same factor so the first one becomes tempo_bpm.
+    """
     score = _load(musicxml_path)
     parts = list(score.parts)
     if not parts:
         raise AnalysisError("invalid_musicxml", "The score has no parts.", "score", 400)
     part = parts[0]
 
-    bpm = float(tempo_bpm) if tempo_bpm is not None else _score_tempo(score, part)
-    sec_per_beat = 60.0 / bpm
+    tempo_map = _tempo_map(parts, tempo_bpm)
 
     notes: list[dict] = []
     for measure_no, measure in enumerate(part.getElementsByClass("Measure"), start=1):
@@ -67,10 +70,12 @@ def parse_score(musicxml_path: str | Path, tempo_bpm: float | None = None) -> di
     for n in notes:  # seconds from beats once, after ties have summed their durations
         n["onset_beats"] = round(n["onset_beats"], ROUND)
         n["duration_beats"] = round(n["duration_beats"], ROUND)
-        n["onset_sec"] = round(n["onset_beats"] * sec_per_beat, ROUND)
-        n["duration_sec"] = round(n["duration_beats"] * sec_per_beat, ROUND)
+        start = _seconds_at(n["onset_beats"], tempo_map)
+        n["onset_sec"] = round(start, ROUND)
+        n["duration_sec"] = round(_seconds_at(n["onset_beats"] + n["duration_beats"], tempo_map) - start, ROUND)
 
-    return {"title": _title(score, musicxml_path), "tempo_bpm": bpm, "beat_unit": "quarter", "notes": notes}
+    first_bpm = tempo_map[0][1]
+    return {"title": _title(score, musicxml_path), "tempo_bpm": first_bpm, "beat_unit": "quarter", "notes": notes}
 
 
 def _load(path: str | Path):
@@ -100,18 +105,44 @@ def _mxl_score_xml(path: str | Path) -> str:
         return z.read(root).decode("utf-8-sig")
 
 
-def _score_tempo(score, part) -> float:
-    """First metronome mark, as quarter notes per minute (dotted-quarter = 60 -> 90).
+def _tempo_map(parts, override: float | None) -> list[tuple[float, float]]:
+    """[(beat, quarter-note bpm), ...] sorted, first at beat 0 (dotted-quarter = 60 -> 90).
 
-    Look in the sung part first, then the whole score: the tempo applies to every part, and
-    voice + piano files often put it only on the piano (e.g. OSMD's Mozart_DasVeilchen.xml).
+    Marks from every part count: the tempo applies to the whole score, and voice + piano files often
+    put it only on the piano (e.g. OSMD's Mozart_DasVeilchen.xml). Two marks on the same beat: the sung
+    part (part 1) wins, then the earlier part. No marks: DEFAULT_TEMPO_BPM throughout. The first mark
+    applies from the start even if it sits a little later. An override scales every mark by one factor.
     """
-    for source in (part, score):
-        for mark in source.recurse().getElementsByClass(tempo.MetronomeMark):
+    found: dict[float, tuple[int, float]] = {}
+    for rank, part in enumerate(parts):
+        for mark in part.recurse().getElementsByClass(tempo.MetronomeMark):
             bpm = mark.getQuarterBPM()
-            if bpm and bpm > 0:
-                return float(bpm)
-    return DEFAULT_TEMPO_BPM
+            if not bpm or bpm <= 0:
+                continue
+            try:
+                beat = round(float(mark.getOffsetInHierarchy(part)), ROUND)
+            except Exception:  # mark not reachable from the part (shouldn't happen); skip it
+                continue
+            if beat not in found or rank < found[beat][0]:
+                found[beat] = (rank, float(bpm))
+    marks = [(beat, bpm) for beat, (_, bpm) in sorted(found.items())] or [(0.0, DEFAULT_TEMPO_BPM)]
+    marks[0] = (0.0, marks[0][1])
+    marks = [m for k, m in enumerate(marks) if k == 0 or m[1] != marks[k - 1][1]]  # drop repeats of same tempo
+    if override is not None:
+        factor = float(override) / marks[0][1]
+        marks = [(beat, bpm * factor) for beat, bpm in marks]
+    return marks
+
+
+def _seconds_at(beat: float, tempo_map: list[tuple[float, float]]) -> float:
+    """Seconds from beat 0 to `beat`, adding up each stretch at its own tempo."""
+    seconds = 0.0
+    for k, (start, bpm) in enumerate(tempo_map):
+        if beat <= start:
+            break
+        end = tempo_map[k + 1][0] if k + 1 < len(tempo_map) else beat
+        seconds += (min(beat, end) - start) * 60.0 / bpm
+    return seconds
 
 
 def _first_verse(el) -> str | None:
