@@ -181,6 +181,10 @@ All arrays have the same length.
 | `stability_cents` | float | Std dev of pitch over that middle 60% |
 | `conf` | float | Mean `conf` over the note's frames |
 
+Stage 3 merges same-pitch fragments (pitch jitter, gap ≤ 30 ms) **before** splitting on loudness dips, so a
+re-sung repeated note stays two notes even when the gap between them is short (at low pitches pYIN's long window
+shrinks a 60 ms breath to a ~30 ms dip; merging after the split glued them back together).
+
 ### 4.4 `alignment.json` (stage 4 → 5)
 
 | Field | Type | Meaning |
@@ -360,7 +364,8 @@ the UI needs from it is in `results`.
 
 Body: the `results` object. Response: `feedback.json`. **Always 200.** On any failure (no key,
 timeout ~15 s, bad output) it returns the rule-based fallback with `"source": "fallback"`.
-It's a separate call so the colored score appears before the AI feedback is ready.
+It's a separate call so the colored score appears before the AI feedback is ready. The frontend calls it only
+when the user clicks **Get feedback** (decided 2026-11-14: no LLM call on every analysis or re-grade).
 
 ### Errors (`/analyze`)
 
@@ -381,7 +386,9 @@ file, `mode`/`preset` not one of the allowed values, `tempo_bpm` ≤ 0 or not a 
 `message` names the field (`"tempo_bpm: Input should be greater than 0"`). FastAPI would otherwise answer
 these with its own `{"detail": [...]}` 422; `main.py` converts them so there is only one error shape.
 
-`stage` says whose code failed. `message` can be shown to the user. In code: raise
+`stage` says whose code failed. `message` can be shown to the user (so no file paths or exception text in it).
+A crash that isn't an `AnalysisError` comes back as 500 `internal_error` with the stage it happened in; the
+traceback goes to the server log. In code: raise
 `AnalysisError(code, message, stage, status)` from `app.errors` (its own module, so stages
 can import it without a circular import through `app.main`).
 
@@ -407,7 +414,19 @@ can import it without a circular import through `app.main`).
 | Extra | small red + next to `near_id` (over the rest if it was during a rest) |
 | Uncertain | its status color, faded |
 
-Hover: exact numbers ("D5 · 38 cents flat · 140 ms late"). Color every ID in `render_ids`.
+Hover: exact numbers ("D5" / "Out of tune · 38 cents flat" / "140 ms late") in a tooltip, per note (bands join
+neighbouring notes with the same result; hover areas don't). Color every ID in `render_ids`.
+
+Results page (frontend, `pages/Evaluate.tsx`):
+
+- **Score card** (`components/ScoreCard.tsx`) above the coach: the total with a verdict (90+ Excellent, 75+ Good,
+  55+ Getting there, else Keep practicing), the four parts, and one bar of notes split by pitch result. Nothing is
+  computed in the frontend.
+- **Grading controls** on the score card: Timing (Free tempo / Strict) and Level (Beginner / Standard = `default` /
+  Advanced). Changing one re-runs `/analyze`; the previous results stay (dimmed) until the new ones arrive, and the
+  coach's feedback for the old grading is hidden (the Get feedback button comes back). Default: free, standard.
+- **Tips with bars are clickable:** the bars are outlined on the score (from OSMD's staff positions) and scrolled
+  into view; click again to clear.
 
 ---
 
@@ -432,7 +451,9 @@ Answer key format: `settings` (what to send to `/analyze`), `expect` (`octave_sh
 `extras` (`near_id`, `during_rest`, `sang`).
 
 Pieces: `c-major-scale` (simplest), `edge-cases` (pickup bar, rests, tie across a barline,
-repeated notes, 7-semitone leap). **After any change to stages 2–5, run every take:** `perfect`
+repeated notes, 7-semitone leap), `twinkle-twinkle` (Twinkle, Twinkle, Little Star: traditional, C major,
+♩ = 80, 12 bars, 42 notes with lyrics; for testing with a real voice; many repeated notes). `lantern-song`
+has a score but no takes. **After any change to stages 2–5, run every take:** `perfect`
 stays green and every planted mistake is still caught. Automated: `npm run check:takes`
 (`tools/check_takes.py`; stages 1-5: every note's verdict vs the answer key.)
 

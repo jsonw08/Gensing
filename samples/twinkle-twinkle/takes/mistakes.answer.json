@@ -1,0 +1,191 @@
+{
+  "piece": "twinkle-twinkle",
+  "take": "mistakes",
+  "settings": {
+    "mode": "strict",
+    "tempo_bpm": 80.0,
+    "countin_end_sec": 3.0
+  },
+  "expect": {
+    "octave_shift": 0
+  },
+  "notes": {
+    "m1-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m1-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m1-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m1-n3": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m2-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m2-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m2-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m3-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m3-n1": {
+      "status": "wrong_note",
+      "sang": "G4",
+      "timing": "on_time"
+    },
+    "m3-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m3-n3": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m4-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m4-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m4-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m5-n0": {
+      "status": "out_of_tune",
+      "cents": -35,
+      "timing": "on_time"
+    },
+    "m5-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m5-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m5-n3": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m6-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m6-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m6-n2": {
+      "status": "in_tune",
+      "timing": "late"
+    },
+    "m7-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m7-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m7-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m7-n3": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m8-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m8-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m8-n2": {
+      "status": "in_tune",
+      "timing": "early"
+    },
+    "m9-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m9-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m9-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m9-n3": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m10-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m10-n1": {
+      "status": "skipped",
+      "timing": null
+    },
+    "m10-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m11-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m11-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m11-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m11-n3": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m12-n0": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m12-n1": {
+      "status": "in_tune",
+      "timing": "on_time"
+    },
+    "m12-n2": {
+      "status": "in_tune",
+      "timing": "on_time"
+    }
+  },
+  "extras": [
+    {
+      "near_id": "m12-n2",
+      "during_rest": false,
+      "sang": "E4"
+    }
+  ]
+}

@@ -58,8 +58,9 @@ Every take starts with one silent bar of count-in (`countin_end_sec` is in its a
 The audio is voice-like (vibrato, scoops, breath gaps, light noise); `npm run synth -- --clean`
 writes pure-tone versions to `takes-clean/` for debugging.
 
-Pieces: `c-major-scale` (simplest case) and `edge-cases` (pickup bar, rests, a tie across a
-barline, repeated notes, a big leap). Add the real demo piece as `samples/<name>/score.musicxml`
+Pieces: `c-major-scale` (simplest case), `edge-cases` (pickup bar, rests, a tie across a
+barline, repeated notes, a big leap) and `twinkle-twinkle` (Twinkle, Twinkle, Little Star, for testing
+with a real voice). Add the real demo piece as `samples/<name>/score.musicxml`
 and run `npm run synth` again.
 
 ## Claude API key
@@ -69,6 +70,6 @@ Without it, `/feedback` uses the rule-based fallback.
 
 ## Status
 
-`/analyze` and `/feedback` are **stubs**: they return the sample JSON in `contracts/`
-so the frontend can be built before the real pipeline exists. Each stage in
-`backend/app/stages/` raises `NotImplementedError` until its owner fills it in.
+`/analyze` runs the real pipeline (stages 1-5) and `/feedback` runs stage 6 (Claude, or the
+rule-based fallback). The sample JSON in `contracts/` describes one real run, for building
+against without the backend (`npm run dev:mock` in the frontend).
