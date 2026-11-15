@@ -1,0 +1,28 @@
+{
+  "source": "llm",
+  "summary": "Strong take: 60 of 64 notes on the right pitch, with a steady rhythm.",
+  "strengths": [
+    "The opening phrase was clean and in tune",
+    "Long notes like \"stream\" and \"grows\" held steady"
+  ],
+  "tips": [
+    {
+      "title": "Watch the accidentals",
+      "explanation": "The E natural in bar 14 came out as Eb, the Ab in bar 22 as A, and the F# in bar 13 was 41 cents flat.",
+      "exercise": "Circle every accidental, then sing bars 13–14 and 22 slowly with a piano.",
+      "measures": [13, 14, 22]
+    },
+    {
+      "title": "Land the key change",
+      "explanation": "After the switch to D major, the C# was 29 cents flat and bar 17 came in 150 ms early.",
+      "exercise": "Sing a D major scale before bar 16, and count a full beat before \"Then\".",
+      "measures": [16, 17]
+    },
+    {
+      "title": "Centre the triplet and the tie",
+      "explanation": "The triplet's middle note was 32 cents flat; the tied D on \"reeds\" was 38 cents sharp and 180 ms late.",
+      "exercise": "Sing bars 6–7 slowly on one vowel against a click.",
+      "measures": [6, 7]
+    }
+  ]
+}
