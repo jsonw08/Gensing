@@ -267,3 +267,60 @@ def test_wrong_notes_do_not_vote():
     sung_notes = sung(("C4", 1.0), ("D4", 2.0), ("E4", 3.0), (68, 6.0), (70, 7.0), (72, 8.0), (87, 9.0))
     # (How the deliberately odd wrong notes get paired in the final pass isn't the point here.)
     assert align(expected, sung_notes)["time_offset_sec"] == pytest.approx(1.0)
+
+
+# --------------------------------------------------------------------------- octave shift (3b)
+
+
+def transposed(sung_notes, semitones):
+    return {"notes": [dict(n, midi=n["midi"] + semitones) for n in sung_notes["notes"]]}
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_octave_down_take(piece):
+    expected = parse_score(score_path(piece))
+    sung_notes, answer = load_take(piece, "octave-down")
+    result = align(expected, sung_notes)
+    check_invariants(expected, sung_notes, result)
+    assert result["octave_shift"] == answer["expect"]["octave_shift"] == -12
+    assert {p["type"] for p in result["pairs"]} == {"match"}
+    assert max(p["cost"] for p in result["pairs"]) < 0.01
+
+
+@pytest.mark.parametrize("piece", PIECES)
+@pytest.mark.parametrize("take", ["perfect", "mistakes", "delayed"])
+def test_same_octave_takes_have_no_shift(piece, take):
+    result = align(parse_score(score_path(piece)), load_take(piece, take)[0])
+    assert result["octave_shift"] == 0
+
+
+@pytest.mark.parametrize("piece", PIECES)
+@pytest.mark.parametrize("shift", [-24, -12, 12, 24])
+def test_mistakes_take_in_another_octave_aligns_the_same(piece, shift):
+    expected = parse_score(score_path(piece))
+    plain, _ = load_take(piece, "mistakes")
+    a, b = align(expected, plain), align(expected, transposed(plain, shift))
+    assert b["octave_shift"] == shift
+    assert summary(a) == summary(b)
+    assert [p.get("near_id") for p in a["pairs"]] == [p.get("near_id") for p in b["pairs"]]
+    assert [p["cost"] for p in a["pairs"]] == pytest.approx([p["cost"] for p in b["pairs"]])
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_octave_down_and_upload_silence_together(piece):
+    expected = parse_score(score_path(piece))
+    sung_notes = shifted(load_take(piece, "octave-down")[0], 1.5)
+    result = align(expected, sung_notes)
+    assert (result["octave_shift"], result["time_offset_sec"]) == (-12, pytest.approx(1.5, abs=0.001))
+    assert {p["type"] for p in result["pairs"]} == {"match"}
+
+
+def test_tie_between_shifts_picks_the_smallest():
+    # Everything a tritone (6 semitones) low: 0 and -12 fit equally badly -> no shift claimed
+    expected = written("C4", "D4", "E4", "F4")
+    sung_notes = sung((54, 0.0), (56, 1.0), (58, 2.0), (59, 3.0))
+    assert align(expected, sung_notes)["octave_shift"] == 0
+
+
+def test_nothing_sung_has_no_shift():
+    assert align(written("C4", "D4"), {"notes": []})["octave_shift"] == 0

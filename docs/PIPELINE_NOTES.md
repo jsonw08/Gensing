@@ -517,7 +517,7 @@ These came out of the planning discussion. Change them deliberately, not by drif
 | Note IDs | Bar number + position in bar (`m3-n2`), built the same way in backend and frontend | Lets backend results land on the right notehead |
 | Pitch tracker | Start with pYIN (librosa); switch to CREPE only if curves look bad | pYIN needs no extra setup |
 | Alignment | Note-to-note alignment with match / skip / extra penalties | Reports skipped and extra notes directly |
-| Octave | Detect an octave shift (−12, 0, +12) before grading | A baritone singing a treble melody shouldn't be all red |
+| Octave | Detect an octave shift (−12, 0, +12) before grading *(changed: ±24 too, e.g. a soprano singing a bass line; see DECISIONS.md 4.4)* | A baritone singing a treble melody shouldn't be all red |
 | Overall score | Yes: total plus four parts (pitch, intonation, rhythm, completeness) | Judges like a number; the breakdown makes it believable |
 | AI feedback | Yes, as an optional last stage, with a rule-based fallback | Readable coaching; demo survives if the API fails |
 | Thresholds | Starting values below, tuned using our own test recordings; optional Beginner/Advanced presets | We don't know good values yet, so we measure |

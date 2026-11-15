@@ -262,7 +262,7 @@ new note on a >0.5 semitone change held ≥50 ms, ~50 ms median filter, split re
 drop notes <80 ms, merge same-pitch neighbors with no real break. The most fragile stage; plot notes over the curve.
 
 **Stage 4, alignment (C)**: `align(expected_notes, sung_notes, mode) -> alignment`. Filter out rests; detect octave
-shift (most common sung−written gap rounded to −12/0/+12); free mode: scale times to the score's length;
+shift (−24/−12/0/+12/+24: the shift whose pitch-only pairing costs least; DECISIONS.md 4.4); free mode: scale times to the score's length;
 edit-distance DP (reference code in `docs/ALIGNMENT_EXPLAINED.md`); split-note merge; set `near_id` on extras. First unit test:
 written C D E vs sung C E → match, skipped, match.
 

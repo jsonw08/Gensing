@@ -174,7 +174,7 @@ All arrays have the same length.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `octave_shift` | int | −12, 0 or +12. Stage 5 subtracts it from sung pitch. |
+| `octave_shift` | int | −24, −12, 0, +12 or +24 (±24: e.g. a soprano singing a bass line). Chosen by a pitch-only first pass run once per shift: the shift whose pairing costs least; on a tie the smallest shift. Stage 5 subtracts it from sung pitch. Non-octave shifts (another key) are not detected: that's nice-to-have "any-key transposition". |
 | `tempo_scale` | float | score time = sung time × `tempo_scale`. 1.0 in strict mode. |
 | `time_offset_sec` | float | Subtracted from sung times before aligning: median of (sung start − written start) over near-right matches (within 1 semitone) from a pitch-only first pass; 0 if fewer than 3. Covers upload lead-in silence and recording delay. `sung_notes` itself is not changed. |
 | `total_cost` | float | Debug only |

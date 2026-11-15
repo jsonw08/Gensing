@@ -6,11 +6,11 @@ table method: docs/ALIGNMENT_EXPLAINED.md.
 
 Steps (later parts fill in the marked ones):
   1. drop rests (they never appear in pairs)
-  2. octave shift                                   [3b: detected; 0 for now]
-  3. time offset from matched pairs (done) / tempo scale [3e: 1.0 for now]
-  4. fill the table and trace back                  (this part)
+  2. first pass, pitch only: octave shift = the shift whose pairing costs least
+  3. time offset from that pass's near-right matches / tempo scale [3e: 1.0 for now]
+  4. fill the table (pitch + timing) and trace back
   5. split-note merge                               [3c: every match has one sid for now]
-  6. near_id on extras                              (this part)
+  6. near_id on extras
 """
 
 from statistics import median
@@ -25,6 +25,10 @@ EXTRA_COST = 3.0  # sung note not in the score
 # On an exact tie, prefer the explanation with fewer claimed mistakes: "you sang it" over skip + extra.
 # (Comparing (cost, "name") tuples would break ties alphabetically, so "extra" would beat "match".)
 TIE_ORDER = {"match": 0, "skipped": 1, "extra": 2}
+
+# Octave shift: a voice singing the line in another octave (baritone on a soprano line: -12; soprano on
+# a bass line: +12 or +24). Listed in tie order: on an exact tie, the smallest shift wins.
+OCTAVE_SHIFTS = (0, -12, 12, -24, 24)
 
 # Time offset (DECISIONS.md section 3, "Time zero"): how far the singer's timeline is shifted from the
 # score's (silence before singing in an upload, browser recording delay). Measured, then removed.
@@ -43,9 +47,9 @@ def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
     sung = sung_notes["notes"]
     beats_per_sec = expected_notes["tempo_bpm"] / 60.0
 
-    octave_shift = 0  # 3b
+    octave_shift, first_pass = _choose_octave_shift(written, sung)
     tempo_scale = 1.0  # 3e (score time = sung time x tempo_scale)
-    time_offset = _time_offset(written, sung, octave_shift)
+    time_offset = _time_offset(written, sung, octave_shift, first_pass)
     sung_beats = [(s["start_sec"] - time_offset) * tempo_scale * beats_per_sec for s in sung]
 
     pairs, total = _fill_and_trace(written, sung, sung_beats, octave_shift)
@@ -72,14 +76,27 @@ def pair_cost(
     return semitones + beat_weight * abs(sung_beat - written["onset_beats"])
 
 
-def _time_offset(written: list[dict], sung: list[dict], octave_shift: int) -> float:
+def _choose_octave_shift(written: list[dict], sung: list[dict]) -> tuple[int, list[dict]]:
+    """First pass: pair by pitch only (timing off, so an unknown time offset can't mislead it), once per
+    candidate shift. The right shift makes pairs cost ~0; an octave off makes them cost the cap, so the
+    cheapest pairing is the "most common gap" measured on real pairs. Returns (shift, its pairs)."""
+    best = None
+    for rank, shift in enumerate(OCTAVE_SHIFTS):
+        pairs, cost = _fill_and_trace(written, sung, [0.0] * len(sung), shift, beat_weight=0.0)
+        key = (round(cost, 9), rank)
+        if best is None or key < best[0]:
+            best = (key, shift, pairs)
+    return best[1], best[2]
+
+
+def _time_offset(written: list[dict], sung: list[dict], octave_shift: int, first_pass: list[dict]) -> float:
     """Seconds to subtract from sung times so they line up with the score.
 
-    Pass 1 pairs by pitch only (timing off, so an unknown shift can't mislead it). Each near-right
-    match votes with (sung start - written start); the median ignores a cough, a skipped note or a
-    few wrong pairings. Works for uploads, scores that open with rests, and recording delay alike.
+    Each near-right match from the pitch-only first pass votes with (sung start - written start); the
+    median ignores a cough, a skipped note or a few wrong pairings. Works for uploads, scores that open
+    with rests, and recording delay alike.
     """
-    pairs, _ = _fill_and_trace(written, sung, [0.0] * len(sung), octave_shift, beat_weight=0.0)
+    pairs = first_pass
     w_by_id = {w["id"]: w for w in written}
     s_by_id = {s["sid"]: s for s in sung}
     votes = []
