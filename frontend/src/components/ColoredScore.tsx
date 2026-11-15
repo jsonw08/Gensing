@@ -1,6 +1,6 @@
 import type React from 'react'
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import type { Results } from '../lib/api'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ResultNote, Results } from '../lib/api'
 import { alignMarks, type Box, measureBoxes, type NoteTip, paintScore, STATUS_COLOR, type ScoreMark, TIMING_COLOR } from '../lib/colorScore'
 import type { NoteIdEntry } from '../lib/noteIds'
 import { ScoreView } from './ScoreView'
@@ -9,15 +9,18 @@ import { ScoreView } from './ScoreView'
 // re-applied after every OSMD render (resize) and whenever `results` changes (e.g. re-graded in another
 // mode), without reloading the score. `highlightBars` outlines those bars and scrolls to the first.
 // The score scrolls inside `.score-page`; the legend sits under it, outside the scroll.
+// `onPlayNote`: clicking a note that was sung (it has sung times) calls it, e.g. to play that stretch.
 export function ColoredScore({
   xml,
   results,
   highlightBars = [],
+  onPlayNote,
   children,
 }: {
   xml: string
   results: Results | null
   highlightBars?: number[]
+  onPlayNote?: (note: ResultNote) => void
   /** Drawn over the page (e.g. an "Analyzing…" dialog). */
   children?: ReactNode
 }) {
@@ -81,6 +84,11 @@ export function ColoredScore({
     const below = m.y - height - 16 < visibleTop
     setTip({ x, y: below ? m.y + m.h : m.y, tail: center - x, below, tip: m.tip })
   }
+  // Notes that can be played: graded and actually sung (skipped notes have no sung times).
+  const playable = useMemo(
+    () => new Map((results?.notes ?? []).filter((n) => n.sung_start_sec !== null && n.sung_end_sec !== null).map((n) => [n.id, n])),
+    [results],
+  )
   const tipLabel = (t: NoteTip) => `${t.title}: ${t.lines.join(', ')}`
   const shown = highlightBars.filter((b) => bars.has(b))
 
@@ -118,16 +126,19 @@ export function ColoredScore({
                     }}
                   />
                 )
-              if (m.kind === 'hit')
+              if (m.kind === 'hit') {
+                const note = onPlayNote && m.noteId ? playable.get(m.noteId) : undefined
                 return (
                   <span
                     key={i}
-                    className="mark-hit"
+                    className={`mark-hit${note ? ' playable' : ''}`}
                     style={{ left: m.x, top: m.y, width: m.w, height: m.h }}
                     onMouseEnter={() => showTip(m)}
                     onMouseLeave={() => setTip(null)}
+                    onClick={note && (() => onPlayNote?.(note))}
                   />
                 )
+              }
               // Dots are buttons, so the details are reachable from the keyboard too (Tab, then the balloon).
               const dot = { x: m.x - 4, y: m.y - 8, w: 8, h: 8, tip: m.tip }
               return (
@@ -162,12 +173,12 @@ export function ColoredScore({
           </div>
         </ScoreView>
       </div>
-      {results && <Legend />}
+      {results && <Legend canPlay={!!onPlayNote} />}
     </>
   )
 }
 
-function Legend() {
+function Legend({ canPlay }: { canPlay: boolean }) {
   const swatches: [string, string][] = [
     ['In tune', STATUS_COLOR.in_tune],
     ['Out of tune', STATUS_COLOR.out_of_tune],
@@ -186,7 +197,7 @@ function Legend() {
         <i className="legend-dot" style={{ background: TIMING_COLOR }} />
         Early / late
       </span>
-      <span className="legend-hint">Point at a dot for details</span>
+      <span className="legend-hint">Point at a dot for details{canPlay ? ' · click a note to hear it' : ''}</span>
     </div>
   )
 }

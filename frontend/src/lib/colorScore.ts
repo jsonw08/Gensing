@@ -35,7 +35,7 @@ export type ScoreMark =
   | { kind: 'dot'; x: number; y: number; color: string; faded: boolean; tip: NoteTip }
   | { kind: 'highlight'; x: number; y: number; w: number; h: number; color: string; faded: boolean; subtle: boolean }
   // invisible hover area over one notehead's column (bands join several notes; hover is per note)
-  | { kind: 'hit'; x: number; y: number; w: number; h: number; tip: NoteTip }
+  | { kind: 'hit'; x: number; y: number; w: number; h: number; tip: NoteTip; noteId?: string } // noteId: a graded note (clickable)
 
 /** A box in overlay pixels. */
 export type Box = { x: number; y: number; w: number; h: number }
@@ -162,7 +162,7 @@ export function paintScore(entries: NoteIdEntry[], results: Results, overlay: HT
           const bottom = Math.max((staff?.bottom ?? box.bottom) + padY, box.bottom + 3)
           bandTop = Math.min(bandTop, top - origin.top)
           const line = staff?.top ?? box.top // notes on the same line of music share their staff's top
-          marks.push({ kind: 'hit', x: box.left - padX - origin.left, y: top - origin.top, w: box.width + 2 * padX, h: bottom - top, tip })
+          marks.push({ kind: 'hit', x: box.left - padX - origin.left, y: top - origin.top, w: box.width + 2 * padX, h: bottom - top, tip, noteId: r.id })
           const current = run as Band | null
           if (current && current.key === key && Math.abs(current.line - line) < 2) {
             current.left = Math.min(current.left, box.left - padX)
