@@ -32,7 +32,7 @@ npm run setup   # once: root tools, backend venv + pip install, frontend npm ins
 npm run dev     # starts backend and frontend together; Ctrl+C stops both
 ```
 
-- Frontend: http://localhost:5173
+- Frontend: http://localhost:5001
 - Backend: http://localhost:8000 (interactive API docs at http://localhost:8000/docs)
 
 Logs from both are shown in one terminal, prefixed `[api]` and `[web]`.

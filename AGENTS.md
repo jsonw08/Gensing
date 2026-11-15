@@ -108,7 +108,7 @@ docs/                DECISIONS.md, NICE_TO_HAVE.md, PIPELINE_NOTES.md, ALIGNMENT
 | Command (repo root) | Does |
 |---|---|
 | `npm run setup` | once: root deps, `backend/.venv` + pip install, frontend npm install |
-| `npm run dev` | backend (:8000, reload) + frontend (:5173) in one terminal, logs prefixed `[api]` / `[web]` |
+| `npm run dev` | backend (:8000, reload) + frontend (:5001) in one terminal, logs prefixed `[api]` / `[web]` |
 | `npm run dev:backend` / `npm run dev:frontend` | one side only |
 | `npm run setup:backend` | re-run after `requirements.txt` changes |
 | `npm test` | run the backend unit tests (pytest; extra args: `npm test -- -k score`) |
@@ -136,7 +136,7 @@ that to `localhost:8000` (strips `/api`). Backend Python is run as `backend/.ven
 | Pinned versions in `requirements.txt` | Everyone gets identical behavior; no "works on my machine" mid-hackathon |
 | One command `npm run dev` (via `concurrently`) | Nobody has to juggle two terminals; if one server crashes on startup the other stops too (`--kill-others-on-fail`) |
 | macOS-only scripts (`.venv/bin/...`) | Whole team is on Mac; no Windows shims needed |
-| Vite proxy `/api` → `:8000` + CORS for `localhost:5173` | No CORS issues in dev; the frontend code never hardcodes the backend URL |
+| Vite proxy `/api` → `:8000` + CORS for `localhost:5001` | No CORS issues in dev; the frontend code never hardcodes the backend URL |
 | Endpoints and stages started as **stubs** (all real now) | `/analyze` and `/feedback` returned the contract samples so the frontend could be built on day one. Each stage function has its real signature and raises `NotImplementedError` until its owner fills it in. Separate files per stage avoid merge conflicts. |
 | `.gitignore`: venvs, node_modules, dist, caches, `.env*` (except `.env.example`), logs, `.DS_Store`, editors, `backend/tmp/`, `samples/*/takes-clean/` | Keep the repo to source only; never commit secrets |
 
