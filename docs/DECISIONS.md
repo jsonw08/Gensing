@@ -17,6 +17,16 @@ overall score and short AI coaching tips. HackUMass XIV, team of 3, 24 hours.
 
 **Must work in the demo:** a colored score showing the error types, plus the overall score.
 
+**Timing modes (decided 2026-11-14):**
+
+- **Free (main mode, the default):** the singer records at their own speed. Rhythm is judged against
+  their own pulse, not the score's tempo marking.
+- **Strict (secondary):** graded against the score's tempo. The app plays **only a one-bar count-in**
+  at the starting tempo, then no click while singing: the singer keeps time on their own. (No
+  continuous click, so the frontend has nothing to keep in sync with tempo changes, and headphones are
+  optional: the count-in is cut off before analysis.)
+- Keep the frontend's work small.
+
 ### Pipeline and owners
 
 Each arrow is a JSON file. Stages 1 and 2–3 don't depend on each other; they meet at stage 4.
@@ -246,7 +256,8 @@ Each entry in `notes`:
 | Timing | within ±max(⅛ beat, 80 ms) | `on_time` (±94 ms at 80 BPM) |
 | Timing | outside | `early` / `late` |
 
-Strict mode measures timing against the click (stage 1 onsets). Free mode measures against a
+Strict mode measures timing against the score's tempo (stage 1 onsets; the singer heard it only in the
+count-in). Free mode measures against a
 line fit through ~4 neighbors on each side. Both subtract the singer's median offset first
 (browser recording delay of 50–150 ms + consonant-before-vowel, or an upload's lead-in silence):
 that offset is `alignment.time_offset_sec`, so stage 4 and 5 use the same number.
@@ -254,6 +265,8 @@ that offset is `alignment.time_offset_sec`, so stage 4 and 5 use the same number
 **Score weights (first guess):** pitch 40% (% of notes on the right note), intonation 20% (avg
 cents off on right notes: 0 → 100, 50 → 0), rhythm 25% (% of matched notes on time),
 completeness 15% (% not skipped, minus a small penalty per extra).
+**Pitch should count more** (decided 2026-11-14): e.g. pitch 50 / intonation 25 / rhythm 15 /
+completeness 10. Exact numbers are set when stage 5 is built.
 
 Optional presets: beginner ±35 cents / ±¼ beat; advanced ±15 cents / ±1/16 beat.
 
@@ -280,7 +293,7 @@ Multipart form:
 |---|---|---|
 | `musicxml` | file | `.musicxml`, `.xml`, `.mxl`. Any saved file name works: stage 1 reads by content (a zip = compressed `.mxl`). |
 | `audio` | file | **Always WAV.** Browsers record WebM (Chrome) or MP4 (Safari); librosa can't read those without ffmpeg. The frontend converts any recording or upload to WAV with the Web Audio API first. |
-| `mode` | `strict` \| `free` | default `strict` |
+| `mode` | `strict` \| `free` | default `free` (the main mode) |
 | `tempo_bpm` | number, optional | missing = the score's marking. Given: every tempo mark is scaled by the same factor so the first one becomes this (80 → 120 later becomes 120 → 180). Must be > 0 (validate in the endpoint: `Form(None, gt=0)`). |
 | `preset` | `default` \| `beginner` \| `advanced` | default `default` |
 | `countin_end_sec` | number | where beat 1 is in the recording; 0 for uploads |
@@ -385,7 +398,7 @@ The list (with details and owners) lives in [`NICE_TO_HAVE.md`](NICE_TO_HAVE.md)
 
 ### If behind schedule, cut in this order
 
-retry-a-bar, "ask the coach", playback highlight → pitch view → free tempo mode (keep strict) →
+retry-a-bar, "ask the coach", playback highlight → pitch view → strict mode (keep free, the main mode) →
 the LLM call (fallback covers it) → in-app recording (upload only).
 **Never cut:** the colored score, the error types, the overall score.
 

@@ -337,7 +337,8 @@ Shows everything on the actual sheet music. This is what judges see.
    recording instead.
 2. **Record:** still score, record button, one-bar count-in, click continues in strict mode
    (headphones). Web Audio API for the click, MediaRecorder for the mic. Send the exact count-in end
-   time to the backend.
+   time to the backend. *(Changed: count-in only, no click while singing; headphones optional. Free mode
+   is the main mode. See DECISIONS.md section 1.)*
 3. **Results:** colored score, score card, coach panel, pitch view.
 
 **How coloring works:**
@@ -512,9 +513,9 @@ These came out of the planning discussion. Change them deliberately, not by drif
 | Score input | MusicXML (exported from MuseScore or downloaded) | Exact pitches and durations; PDF via OMR would eat the whole weekend and its errors look like the singer's errors |
 | Showing errors | Draw the score in the browser with OpenSheetMusicDisplay and color individual noteheads | Each note is its own shape we can style; can't do that on a PDF image |
 | Live vs offline | Record first, then analyze | Far simpler; one pass over the full recording |
-| Timing modes | Support both strict (click track) and free tempo; build strict first | Same alignment for both; only the timing reference differs, so free mode is cheap |
+| Timing modes | Support both strict (click track) and free tempo; build strict first *(changed: free is the main mode; strict has a count-in only)* | Same alignment for both; only the timing reference differs, so free mode is cheap |
 | Recording | Record inside the app (count-in + click), with file upload as a fallback | App knows exactly where beat 1 is; upload covers the backup demo recording |
-| Click during recording | Singer wears headphones | Otherwise the mic picks up the click and pitch tracking follows it |
+| Click during recording | Singer wears headphones *(changed: no click while singing, so optional)* | Otherwise the mic picks up the click and pitch tracking follows it |
 | Note IDs | Bar number + position in bar (`m3-n2`), built the same way in backend and frontend | Lets backend results land on the right notehead |
 | Pitch tracker | Start with pYIN (librosa); switch to CREPE only if curves look bad | pYIN needs no extra setup |
 | Alignment | Note-to-note alignment with match / skip / extra penalties | Reports skipped and extra notes directly |

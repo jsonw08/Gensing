@@ -37,8 +37,9 @@ uploads a MusicXML score, records themselves singing it (record first, analyze a
 feedback), and gets the sheet music back with every note colored: in tune, out of tune, wrong
 note, early/late, skipped, or extra. They also get an overall score (total + pitch, intonation,
 rhythm, completeness) and short AI coaching tips. One singing voice, no instruments, MusicXML
-input only. Two timing modes: **strict** (against a click track, build first) and **free**
-(against the singer's own tempo).
+input only. Two timing modes: **free** (the main mode and default: the singer's own tempo) and **strict**
+(against the score's tempo; the app plays only a one-bar count-in, no click while singing). See
+DECISIONS.md section 1.
 
 **The demo must show:** a colored score with the error types, plus the overall score. Everything
 else is secondary.
@@ -275,7 +276,8 @@ on the test takes.
 Anthropic SDK docs before writing the API call; don't guess SDK signatures.
 
 **Stage 7, frontend (A)**: Setup screen (upload MusicXML, mode/tempo/preset, or upload a recording), Record screen
-(one-bar count-in, click via Web Audio API, MediaRecorder for the mic, headphones; send the exact `countin_end_sec`),
+(one-bar count-in at the starting tempo via Web Audio API, then **no click** while singing; MediaRecorder for the mic;
+headphones optional; send the exact `countin_end_sec`),
 Results screen (colored score, score card, coach panel with clickable tips → highlight bars, optional pitch view).
 Convert all audio to WAV before upload. Note IDs: copy `collectNoteIds()` from `tools/check_osmd_ids.mjs`
 (already verified against stage 1; see DECISIONS.md section 3). **First task before any audio exists:** color every note from
@@ -293,7 +295,7 @@ click a note to hear it → pitch view → beginner/advanced presets → repeats
 PDFs/photos. Not yet ranked: choosing which part to sing (today: first part only).
 
 **If behind, cut in this order:** retry-a-bar, ask-the-coach, playback highlight → pitch view →
-free tempo mode → the LLM call (fallback covers it) → in-app recording (upload only).
+strict mode (keep free, the main mode) → the LLM call (fallback covers it) → in-app recording (upload only).
 **Never cut:** the colored score, the error types, the overall score.
 
 ---
