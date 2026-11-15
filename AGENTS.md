@@ -114,6 +114,7 @@ docs/                DECISIONS.md, NICE_TO_HAVE.md, PIPELINE_NOTES.md, ALIGNMENT
 | `npm test` | run the backend unit tests (pytest; extra args: `npm test -- -k score`) |
 | `npm run check:osmd-ids [-- <name>]` | proves stage 1 IDs == OSMD's IDs and every ID has a drawn notehead (real OSMD in Node via jsdom). `--osmd-defaults` shows the multi-rest problem. |
 | `npm run inspect:score -- <name> [--bars 3-5]` | stage 1 by eye: real MusicXML bars next to `parse_score` output, plus an independent raw-XML check (no args lists names; `all` checks every file). Not a pytest test. |
+| `npm run check:takes` | every test take through the real pipeline (stages 1-4 today), strict + free, vs its answer key |
 | `npm run synth` | regenerate all test takes (`-- --clean` for pure tones into `takes-clean/`) |
 | `cd frontend && npm run build && npm run lint` | type-check, build, lint (oxlint) |
 
@@ -227,7 +228,7 @@ few rest frames as voiced (conf ≈ 0.01, ~1% loudness). Stage 3's confidence cu
 
 **Verification**
 
-11. After changing stages 2–5, run every take in `samples/*/takes/` through the pipeline and compare against its `.answer.json`: `perfect` must stay all green, every planted mistake must still be caught. (A `tools/check_takes.py` script to automate this is planned but not written yet; it's a good thing to build once stages are real.)
+11. After changing stages 2–5, run every take in `samples/*/takes/` through the pipeline and compare against its `.answer.json`: `perfect` must stay all green, every planted mistake must still be caught. Automated: `npm run check:takes` (stages 1-4 today; add stage 5 verdicts when grading exists).
 12. Plot before tuning: the pitch curve (stage 2) and detected notes over it (stage 3) are the main debugging tools.
 13. Frontend: run `npm run build` and `npm run lint` in `frontend/`. Check note coloring against `contracts/` samples (real IDs from `c-major-scale`).
 

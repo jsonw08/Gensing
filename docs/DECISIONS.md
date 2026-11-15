@@ -383,8 +383,8 @@ Answer key format: `settings` (what to send to `/analyze`), `expect` (`octave_sh
 
 Pieces: `c-major-scale` (simplest), `edge-cases` (pickup bar, rests, tie across a barline,
 repeated notes, 7-semitone leap). **After any change to stages 2–5, run every take:** `perfect`
-stays green and every planted mistake is still caught. (`tools/check_takes.py` to automate this
-is planned once the real pipeline exists.)
+stays green and every planted mistake is still caught. Automated: `npm run check:takes`
+(`tools/check_takes.py`; stages 1-4 today, stage 5 verdicts to be added.)
 
 Known quirk: in `octave-down`, pYIN marks a few noise frames during rests as voiced (conf ≈ 0.01,
 ~1% of singing loudness). Stage 3's confidence cutoff must drop them.
