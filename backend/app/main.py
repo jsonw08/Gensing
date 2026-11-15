@@ -1,4 +1,4 @@
-"""FastAPI app. Endpoints return sample JSON from /contracts until the stages are real.
+"""FastAPI app.
 
 POST /analyze   musicxml + WAV + settings -> {results, expected_notes, sung_notes, pitch_track}  (stages 1-5)
 POST /feedback  results                    -> feedback  (stage 6; always 200, falls back to rules)
@@ -8,20 +8,32 @@ Errors from /analyze use one shape (see docs/DECISIONS.md, "API"):
 """
 
 import json
+import logging
+import shutil
+import tempfile
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 
 from dotenv import load_dotenv
 from fastapi import Body, FastAPI, File, Form, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.errors import AnalysisError  # stages raise it; defined in app/errors.py to avoid a circular import
+from app.stages.align import align
 from app.stages.feedback import generate_feedback, rule_based_feedback
+from app.stages.grade import grade
+from app.stages.pitch import track_pitch
+from app.stages.score import parse_score
+from app.stages.segment import segment_notes
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 CONTRACTS_DIR = BACKEND_DIR.parent / "contracts"
+TMP_DIR = BACKEND_DIR / "tmp"  # uploads live here only while a request runs (gitignored)
+
+log = logging.getLogger("gensing")
 
 load_dotenv(BACKEND_DIR / ".env")  # ANTHROPIC_API_KEY for stage 6
 
@@ -75,23 +87,47 @@ async def analyze(
     preset: Literal["default", "beginner", "advanced"] = Form("default"),
     countin_end_sec: float = Form(0.0, ge=0),
 ) -> dict:
-    # TODO: replace with the real pipeline:
-    #   expected = score.parse_score(musicxml_path, tempo_bpm)
-    #   track    = pitch.track_pitch(wav_path, countin_end_sec)
-    #   sung     = segment.segment_notes(track)
-    #   aligned  = align.align(expected, sung, mode)
-    #   results  = grade.grade(aligned, expected, sung, mode, preset)
-    return {
-        "results": load_sample("results"),
-        "expected_notes": load_sample("expected_notes"),
-        "sung_notes": load_sample("sung_notes"),
-        "pitch_track": load_sample("pitch_track"),
-    }
+    """Stages 1-5. The uploads are saved to backend/tmp/ for the length of the request."""
+    TMP_DIR.mkdir(exist_ok=True)
+    work = Path(tempfile.mkdtemp(dir=TMP_DIR))
+    try:
+        score_path, wav_path = work / "score", work / "audio.wav"  # stage 1 reads the score by content
+        score_path.write_bytes(await musicxml.read())
+        wav_path.write_bytes(await audio.read())
+        # pitch tracking takes seconds: run it off the event loop so the server stays responsive
+        return await run_in_threadpool(
+            run_pipeline, score_path, wav_path, mode, tempo_bpm, preset, countin_end_sec
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def run_pipeline(
+    score_path: Path, wav_path: Path, mode: str, tempo_bpm: float | None, preset: str, countin_end_sec: float
+) -> dict:
+    expected = _stage("score", parse_score, score_path, tempo_bpm)
+    track = _stage("pitch", track_pitch, str(wav_path), countin_end_sec)
+    sung = _stage("segment", segment_notes, track)
+    aligned = _stage("align", align, expected, sung, mode)
+    results = _stage("grade", grade, aligned, expected, sung, mode, preset)
+    return {"results": results, "expected_notes": expected, "sung_notes": sung, "pitch_track": track}
+
+
+def _stage(name: str, fn: Callable, *args):
+    """Run one stage. AnalysisError passes through as is; any other exception is our bug: logged with
+    its traceback and returned as a 500 internal_error that names the stage."""
+    try:
+        return fn(*args)
+    except AnalysisError:
+        raise
+    except Exception as e:
+        log.exception("stage %s crashed", name)
+        raise AnalysisError("internal_error", f"Something went wrong while analyzing ({name}).", name, 500) from e
 
 
 @app.post("/feedback")
 async def feedback(results: dict = Body(...)) -> dict:
-    """Stage 6. Body = results object (until stage 5 is live, POST contracts/results.sample.json).
+    """Stage 6. Body = the `results` object from /analyze.
 
     Always 200: Claude via generate_feedback, or rule_based_feedback on any failure.
     """

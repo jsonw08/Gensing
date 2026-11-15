@@ -14,6 +14,8 @@ from pathlib import Path
 import librosa
 import numpy as np
 
+from app.errors import AnalysisError
+
 SAMPLE_RATE = 16_000
 HOP_LENGTH = 160  # 160 / 16000 = 0.01 s exactly
 HOP_SEC = HOP_LENGTH / SAMPLE_RATE
@@ -34,11 +36,9 @@ def track_pitch(audio_path: str, countin_end_sec: float = 0.0) -> dict:
     """
     path = Path(audio_path)
     if not path.is_file():
-        from app.main import AnalysisError
-
         raise AnalysisError(
             "invalid_audio",
-            f"Audio file not found: {audio_path}",
+            "No recording was received.",
             stage="pitch",
             status=400,
         )
@@ -46,11 +46,9 @@ def track_pitch(audio_path: str, countin_end_sec: float = 0.0) -> dict:
     try:
         y, _sr = librosa.load(str(path), sr=SAMPLE_RATE, mono=True)
     except Exception as exc:  # librosa wraps soundfile / audioread errors
-        from app.main import AnalysisError
-
         raise AnalysisError(
             "invalid_audio",
-            f"Could not read audio: {exc}",
+            "This recording couldn't be read. Send it as a WAV file.",
             stage="pitch",
             status=400,
         ) from exc
@@ -60,11 +58,9 @@ def track_pitch(audio_path: str, countin_end_sec: float = 0.0) -> dict:
 
     trim_samples = int(round(countin_end_sec * SAMPLE_RATE))
     if trim_samples >= len(y):
-        from app.main import AnalysisError
-
         raise AnalysisError(
             "invalid_audio",
-            "Count-in trim leaves no audio to analyze",
+            "The recording ends before the count-in does: nothing was sung after it.",
             stage="pitch",
             status=400,
         )

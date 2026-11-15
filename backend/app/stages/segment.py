@@ -5,12 +5,15 @@ Output shape: contracts/sung_notes.sample.json
 
 Pass 1: conf cutoff, ~50 ms median filter, split on pitch jumps held ≥50 ms,
 drop notes shorter than 80 ms.
-Pass 2: split same-pitch runs on RMS dips; merge same-pitch neighbors with no real break.
+Pass 2: merge same-pitch neighbors with no real break, then split same-pitch runs on RMS dips
+(in that order, so a re-sung repeated note isn't merged back).
 """
 
 from __future__ import annotations
 
 import numpy as np
+
+from app.errors import AnalysisError
 
 # Starting knobs (AGENTS.md §6 / contracts/sung_notes.sample.json params)
 CONF_CUTOFF = 0.5
@@ -33,11 +36,9 @@ def segment_notes(pitch_track: dict) -> dict:
     t = np.asarray(pitch_track["t"], dtype=float)
     n = len(t)
     if n == 0:
-        from app.main import AnalysisError
-
         raise AnalysisError(
             "no_voice_detected",
-            "Pitch track is empty",
+            "The recording is empty.",
             stage="segment",
             status=422,
         )
@@ -66,6 +67,14 @@ def segment_notes(pitch_track: dict) -> dict:
     merge_gap_frames = max(0, int(round(MERGE_MAX_GAP_MS / (hop_sec * 1000.0))))
 
     spans = _split_notes(midi_f, hold_frames=hold_frames, min_change=MIN_PITCH_CHANGE)
+    # Merge pitch-jitter fragments first, THEN split on loudness dips: merging after the dip split glued a
+    # re-sung repeated note (dip ~30 ms at low pitches, where pYIN's long window smears the gap) back together.
+    spans = _merge_same_pitch(
+        spans,
+        midi_f,
+        pitch_tol=MERGE_PITCH_TOL,
+        max_gap_frames=merge_gap_frames,
+    )
     spans = _split_on_rms_dips(
         spans,
         rms,
@@ -74,12 +83,6 @@ def segment_notes(pitch_track: dict) -> dict:
         edge_frames=dip_edge_frames,
     )
     spans = [(a, b) for a, b in spans if (b - a) >= min_note_frames]
-    spans = _merge_same_pitch(
-        spans,
-        midi_f,
-        pitch_tol=MERGE_PITCH_TOL,
-        max_gap_frames=merge_gap_frames,
-    )
 
     notes: list[dict] = []
     for start_i, end_i in spans:
@@ -118,11 +121,9 @@ def segment_notes(pitch_track: dict) -> dict:
         )
 
     if not notes:
-        from app.main import AnalysisError
-
         raise AnalysisError(
             "no_voice_detected",
-            "No sung notes found after segmentation",
+            "No singing found in the recording. Check the microphone and try again.",
             stage="segment",
             status=422,
         )

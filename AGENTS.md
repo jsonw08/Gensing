@@ -137,7 +137,7 @@ that to `localhost:8000` (strips `/api`). Backend Python is run as `backend/.ven
 | One command `npm run dev` (via `concurrently`) | Nobody has to juggle two terminals; if one server crashes on startup the other stops too (`--kill-others-on-fail`) |
 | macOS-only scripts (`.venv/bin/...`) | Whole team is on Mac; no Windows shims needed |
 | Vite proxy `/api` → `:8000` + CORS for `localhost:5173` | No CORS issues in dev; the frontend code never hardcodes the backend URL |
-| Endpoints and stages are **stubs** | `/analyze` and `/feedback` return the contract samples so the frontend can be built on day one. Each stage function has its real signature and raises `NotImplementedError` until its owner fills it in. Separate files per stage avoid merge conflicts. |
+| Endpoints and stages started as **stubs** (all real now) | `/analyze` and `/feedback` returned the contract samples so the frontend could be built on day one. Each stage function has its real signature and raises `NotImplementedError` until its owner fills it in. Separate files per stage avoid merge conflicts. |
 | `.gitignore`: venvs, node_modules, dist, caches, `.env*` (except `.env.example`), logs, `.DS_Store`, editors, `backend/tmp/`, `samples/*/takes-clean/` | Keep the repo to source only; never commit secrets |
 
 ### 4.2 Contracts (full field tables in DECISIONS.md section 4)
@@ -169,7 +169,7 @@ that to `localhost:8000` (strips `/api`). Backend Python is run as `backend/.ven
 
 | Decision | Why |
 |---|---|
-| Two endpoints: `/analyze` (stages 1–5) and `/feedback` (stage 6) | The colored score shows immediately; AI feedback loads after |
+| Two endpoints: `/analyze` (stages 1–5) and `/feedback` (stage 6) | The colored score shows immediately; AI feedback only when the user clicks "Get feedback" (no LLM call per analysis or re-grade) |
 | `/analyze` returns `{results, expected_notes, sung_notes, pitch_track}` | Pitch view needs them; one request shows every stage when debugging (~150 KB) |
 | Frontend **always sends WAV** | Browsers record WebM/MP4; librosa needs ffmpeg for those. Converting in the browser (Web Audio API) means one format and no ffmpeg on anyone's laptop. |
 | Error shape `{"error": {code, message, stage}}`; 400 / 422 / 500 | One shape to handle; `stage` tells you whose code failed. Raise `AnalysisError` from `app.errors` (own module: `main` imports the stages, so importing from `main` would be circular). |
@@ -295,8 +295,11 @@ Convert all audio to WAV before upload. Note IDs: copy `collectNoteIds()` from `
 `contracts/results.sample.json` (loaded with `samples/c-major-scale/score.musicxml`) and check each color and marker
 lands on the right notehead. `api.ts` currently types responses as `any`; tighten to the contract shapes when convenient.
 
-**Wiring (B)**: replace the stub bodies in `main.py` with the real calls (the TODO lists the order), saving
-uploads to `backend/tmp/` (gitignored).
+**Wiring (B)** (done): `/analyze` saves the uploads to a per-request folder in `backend/tmp/` (gitignored, deleted
+after the request), runs stages 1-5 in a worker thread (pitch tracking takes ~1 s per 15 s of audio) and returns
+`{results, expected_notes, sung_notes, pitch_track}`. An `AnalysisError` passes through; any other exception is
+logged and returned as a 500 `internal_error` naming the stage that crashed. Messages from stages are shown to the
+user, so they must not contain paths or exception text.
 
 ### Nice-to-haves (only after the core works end to end)
 
@@ -318,7 +321,7 @@ are listed in **DECISIONS.md section 9, "Known limitations"**. Keep that list cu
 
 - **pYIN NaN → invalid JSON.** Always convert.
 - **22,050 Hz hop drift.** Use 16 kHz / hop 160.
-- **Browser audio isn't WAV.** Convert in the frontend.
+- **Browser audio isn't WAV.** Converted in the frontend: `frontend/src/lib/wav.ts` (`toWav`: browser decode, 16 kHz mono 16-bit), called inside `api.ts analyze()`.
 - **Pickup bars are printed as 0** in MusicXML (`number="0" implicit="yes"`). Count by file position.
 - **OSMD draws grace notes**; the frontend's ID counter must skip them.
 - **OSMD merges empty bars into one multi-bar rest by default**, leaving those rests without a notehead. Set

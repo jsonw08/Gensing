@@ -1,4 +1,5 @@
-// Thin client for the backend. Shapes follow /contracts (to be locked in step 2).
+// Thin client for the backend. Shapes follow /contracts (docs/DECISIONS.md section 4).
+import { toWav } from './wav'
 
 export type AnalyzeSettings = {
   mode: 'strict' | 'free'
@@ -65,20 +66,31 @@ export type AnalyzeResponse = {
   pitch_track: any
 }
 
-// TODO(A): convert `audio` to WAV in the browser before sending (backend only reads WAV).
+// The recording (or uploaded file) is converted to WAV here: the backend only reads WAV.
 export async function analyze(musicxml: File, audio: Blob, settings: AnalyzeSettings): Promise<AnalyzeResponse> {
   if (MOCK_API) return (await import('./mockApi')).mockAnalyze(musicxml)
   const form = new FormData()
   form.append('musicxml', musicxml)
-  form.append('audio', audio, 'performance.wav')
+  form.append('audio', await toWav(audio), 'performance.wav')
   form.append('mode', settings.mode)
   if (settings.tempoBpm !== undefined) form.append('tempo_bpm', String(settings.tempoBpm))
   form.append('preset', settings.preset ?? 'default')
   form.append('countin_end_sec', String(settings.countinEndSec ?? 0))
 
   const res = await fetch('/api/analyze', { method: 'POST', body: form })
-  if (!res.ok) throw new Error(`/analyze failed: ${res.status}`)
+  if (!res.ok) throw new Error(await errorMessage(res))
   return res.json()
+}
+
+/** The backend's {"error": {code, message, stage}} message (written to be shown to the user), else the status. */
+async function errorMessage(res: Response): Promise<string> {
+  try {
+    const body = await res.json()
+    if (typeof body?.error?.message === 'string') return body.error.message
+  } catch {
+    // not JSON: the backend isn't running (Vite's proxy answers 500/502) or crashed outright
+  }
+  return res.status >= 500 ? `The analysis server had a problem (${res.status}). Is the backend running?` : `Request failed (${res.status}).`
 }
 
 // feedback.json (stage 6), docs/DECISIONS.md section 4.6. /feedback always returns 200: on any LLM
@@ -98,14 +110,13 @@ export async function feedback(results: Results): Promise<Feedback> {
 }
 
 // ---------------------------------------------------------------------------------------------------
-// Which calls the app makes. The backend isn't finished, so both are off: the UI shows a
-// "not connected yet" note and makes no requests (no proxy errors).
-// Flip a flag to true once its endpoint is finished.
+// Which calls the app makes. Set a flag to false to switch a call off (the UI then shows a
+// "not connected" note and makes no requests).
 
-/** Analyze a take (stages 1-5). Also needs WAV conversion before it can be turned on for real. */
-const ANALYZE_CONNECTED = false
+/** Analyze a take (stages 1-5). */
+const ANALYZE_CONNECTED = true
 /** Instructor feedback (stage 6). */
-const FEEDBACK_CONNECTED = false
+const FEEDBACK_CONNECTED = true
 
 /** `npm run dev:mock`: both calls return the contract samples, no network (see mockApi.ts). */
 export const MOCK_API = import.meta.env.VITE_MOCK_API === '1'
