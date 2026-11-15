@@ -581,6 +581,9 @@
   pointer-events: auto;
   cursor: help;
 }
+.mark-hit.playable {
+  cursor: pointer; /* click to hear the note */
+}
 /* Bars picked from a coach tip: a marching-ants selection, like a selected region (the tip lists the bars). */
 .mark-bar {
   position: absolute;

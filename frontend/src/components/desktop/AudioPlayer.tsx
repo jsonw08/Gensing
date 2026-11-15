@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { claimPlayback } from '../../lib/exclusivePlayback'
 import { Icon } from './Icon'
 
 function clock(sec: number): string {
@@ -16,6 +17,7 @@ export function AudioPlayer({ src, durationSec, label = 'Recording' }: { src: st
   const [time, setTime] = useState(0)
   const [fileDuration, setFileDuration] = useState(0)
   const duration = Number.isFinite(fileDuration) && fileDuration > 0 ? fileDuration : (durationSec ?? 0)
+  const releaseRef = useRef<(() => void) | null>(null) // gives up the output when this player stops
 
   const toggle = () => {
     const a = audioRef.current
@@ -53,9 +55,19 @@ export function AudioPlayer({ src, durationSec, label = 'Recording' }: { src: st
         onLoadedMetadata={(e) => setFileDuration(e.currentTarget.duration)}
         onDurationChange={(e) => setFileDuration(e.currentTarget.duration)}
         onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
+        onPlay={(e) => {
+          const a = e.currentTarget
+          releaseRef.current = claimPlayback(() => a.pause()) // stops a snippet or another player
+          setPlaying(true)
+        }}
+        onPause={() => {
+          releaseRef.current?.()
+          setPlaying(false)
+        }}
+        onEnded={() => {
+          releaseRef.current?.()
+          setPlaying(false)
+        }}
       />
     </div>
   )

@@ -6,6 +6,7 @@ import { type Menu, MenuBar } from '../components/desktop/MenuBar'
 import { DialogBox, Progress, Window } from '../components/desktop/Window'
 import { FeedbackPanel } from '../components/FeedbackPanel'
 import { type Grading, ScoreCard } from '../components/ScoreCard'
+import { useSnippet } from '../hooks/useSnippet'
 import type { Take } from '../hooks/useTakes'
 import { downloadRecording } from '../lib/audio'
 import {
@@ -15,6 +16,7 @@ import {
   feedback as fetchFeedback,
   FEEDBACK_ENABLED,
   MOCK_API,
+  type ResultNote,
   type Results,
 } from '../lib/api'
 
@@ -28,6 +30,14 @@ export function Evaluate({ take, onBack, onHome }: { take: Take; onBack: () => v
   const [status, setStatus] = useState<Status>(ANALYZE_ENABLED ? { state: 'loading' } : { state: 'off' })
   const [results, setResults] = useState<Results | null>(null)
   const [attempt, setAttempt] = useState(0) // bumped by "Try again"
+
+  // Click a note on the score: hear just that note. Sung times count from beat 1; in the recording that's
+  // countinEndSec later (0 for in-app takes, whose count-in is already cut off, and for uploads).
+  const snippet = useSnippet(take.blob)
+  const playNote = (n: ResultNote) => {
+    if (n.sung_start_sec === null || n.sung_end_sec === null) return
+    snippet.play(n.sung_start_sec + take.countinEndSec, n.sung_end_sec + take.countinEndSec).catch((err) => console.warn('[snippet]', err))
+  }
 
   const changeGrading = (g: Grading) => {
     setGrading(g)
@@ -130,7 +140,7 @@ export function Evaluate({ take, onBack, onHome }: { take: Take; onBack: () => v
             </>
           }
         >
-          <ColoredScore xml={take.scoreXml} results={results} highlightBars={highlightBars}>
+          <ColoredScore xml={take.scoreXml} results={results} highlightBars={highlightBars} onPlayNote={playNote}>
             {status.state === 'off' && (
               <div className="dialog-holder">
                 <DialogBox icon={<Icon name="caution" size={2} />} role="alert">

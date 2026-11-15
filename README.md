@@ -73,3 +73,7 @@ Without it, `/feedback` uses the rule-based fallback.
 `/analyze` runs the real pipeline (stages 1-5) and `/feedback` runs stage 6 (Claude, or the
 rule-based fallback). The sample JSON in `contracts/` describes one real run, for building
 against without the backend (`npm run dev:mock` in the frontend).
+
+## Credits
+
+- Piano samples (the "Starting note" button, `frontend/public/piano/`): [Salamander Grand Piano](https://archive.org/details/SalamanderGrandPianoV3) by Alexander Holm, licensed [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). MP3 copies from [Tone.js](https://github.com/Tonejs/audio).

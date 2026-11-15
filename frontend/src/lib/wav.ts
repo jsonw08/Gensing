@@ -20,6 +20,15 @@ export async function toWav(audio: Blob): Promise<Blob> {
   return new Blob([encodeWav(mixToMono(decoded), decoded.sampleRate)], { type: 'audio/wav' })
 }
 
+/** Cut the first `startSec` seconds off a recording (the count-in clicks) and return the rest as a mono
+ *  16-bit WAV. Keeps a playback-quality sample rate; toWav() still makes the 16 kHz copy for /analyze. */
+export async function trimStartToWav(audio: Blob, startSec: number, sampleRate = 44100): Promise<Blob> {
+  const ctx = new OfflineAudioContext(1, 1, sampleRate)
+  const decoded = await ctx.decodeAudioData(await audio.arrayBuffer())
+  const from = Math.min(decoded.length, Math.max(0, Math.round(startSec * decoded.sampleRate)))
+  return new Blob([encodeWav(mixToMono(decoded).subarray(from), decoded.sampleRate)], { type: 'audio/wav' })
+}
+
 /** Average of all channels. */
 export function mixToMono(buffer: Pick<AudioBuffer, 'numberOfChannels' | 'length' | 'getChannelData'>): Float32Array {
   if (buffer.numberOfChannels === 1) return buffer.getChannelData(0)
