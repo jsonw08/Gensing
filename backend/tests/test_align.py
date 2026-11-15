@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
-from synth_sung import PIECES, load_take, score_path
+from synth_sung import PIECES, load_take, score_path, synth_notes
 
 from app.errors import AnalysisError
 from app.stages.align import align
@@ -122,7 +122,7 @@ def check_invariants(expected, sung_notes, result):
     # shapes
     for p in result["pairs"]:
         assert set(p) == {"type", "id", "sids", "cost"} | ({"near_id"} if p["type"] == "extra" else set())
-        assert len(p["sids"]) == {"match": 1, "skipped": 0, "extra": 1}[p["type"]]
+        assert len(p["sids"]) >= 1 if p["type"] == "match" else len(p["sids"]) == {"skipped": 0, "extra": 1}[p["type"]]
     assert result["total_cost"] == pytest.approx(sum(p["cost"] for p in result["pairs"]), abs=1e-3)
     json.loads(json.dumps(result), parse_constant=lambda c: pytest.fail(c))
 
@@ -324,3 +324,101 @@ def test_tie_between_shifts_picks_the_smallest():
 
 def test_nothing_sung_has_no_shift():
     assert align(written("C4", "D4"), {"notes": []})["octave_shift"] == 0
+
+
+# --------------------------------------------------------------------------- split-note merge (3c)
+
+
+def notes_at(*notes):
+    """notes_at((midi, start, end), ...): sung notes with explicit ends (pieces of split notes)."""
+    return {"notes": [{"sid": f"s{k}", "start_sec": a, "end_sec": b, "midi": float(m), "stability_cents": 20.0,
+                       "conf": 0.9} for k, (m, a, b) in enumerate(notes)]}
+
+
+def by_id(result):
+    return {p["id"]: p for p in result["pairs"] if p["id"]}
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_split_note_merges_back_into_one_match(piece):
+    expected = parse_score(score_path(piece))
+    sung_notes, _ = load_take(piece, "perfect", split=[3])
+    result = align(expected, sung_notes)
+    check_invariants(expected, sung_notes, result)
+    assert {p["type"] for p in result["pairs"]} == {"match"}
+    assert [p["sids"] for p in result["pairs"] if len(p["sids"]) > 1] == [["s3", "s4"]]
+
+
+def test_note_cut_into_three_pieces():
+    sung_notes = notes_at((60, 0.0, 0.3), (60, 0.32, 0.6), (60, 0.62, 0.9), (62, 1.0, 1.8), (64, 2.0, 2.8))
+    result = align(written("C4", "D4", "E4"), sung_notes)
+    assert summary(result) == [("match", "m1-n0", ["s0", "s1", "s2"]), ("match", "m1-n1", ["s3"]),
+                               ("match", "m1-n2", ["s4"])]
+
+
+def test_vibrato_halves_merge():
+    # Two short pieces of one vibrato note, one caught high (+45 c) and one low (-45 c): 0.9 semitone apart
+    sung_notes = notes_at((60.45, 0.0, 0.35), (59.55, 0.37, 0.8), (62, 1.0, 1.8), (64, 2.0, 2.8))
+    result = align(written("C4", "D4", "E4"), sung_notes)
+    assert by_id(result)["m1-n0"]["sids"] == ["s0", "s1"] and len(result["pairs"]) == 3
+
+
+def test_scoop_into_a_note_merges():
+    sung_notes = notes_at((59.2, 0.0, 0.1), (60, 0.12, 0.8), (62, 1.0, 1.8), (64, 2.0, 2.8))
+    result = align(written("C4", "D4", "E4"), sung_notes)
+    assert by_id(result)["m1-n0"]["sids"] == ["s0", "s1"] and len(result["pairs"]) == 3
+
+
+def test_piece_joins_the_note_it_is_closest_to():
+    # Written C4 C#4 D4. A piece at 60.9 right after the C is within 1 semitone of it, but it's really
+    # the start of the C#: it joins the C#, not the C.
+    sung_notes = notes_at((60, 0.0, 0.6), (60.9, 0.62, 0.8), (61, 1.0, 1.6), (62, 2.0, 2.6))
+    result = align(written("C4", "C#4", "D4"), sung_notes)
+    assert by_id(result)["m1-n0"]["sids"] == ["s0"]
+    assert by_id(result)["m1-n1"]["sids"] == ["s1", "s2"]
+
+
+def test_piece_closer_to_the_next_note_but_too_far_from_it_stays_extra():
+    # Same, but the C# comes 0.3 s after the piece: too big a gap to join the C#, and the guard keeps it
+    # out of the C (it's closer to C# than to C)
+    sung_notes = notes_at((60, 0.0, 0.6), (60.9, 0.62, 0.8), (61, 1.1, 1.6), (62, 2.0, 2.6))
+    result = align(written("C4", "C#4", "D4"), sung_notes)
+    assert [p["type"] for p in result["pairs"]] == ["match", "extra", "match", "match"]
+
+
+def test_same_note_sung_again_after_a_real_gap_stays_extra():
+    sung_notes = notes_at((60, 0.0, 0.4), (60, 0.9, 1.3), (64, 2.0, 2.8))
+    result = align(written("C4", None, "E4"), sung_notes)
+    assert summary(result) == [("match", "m1-n0", ["s0"]), ("extra", None, ["s1"]), ("match", "m1-n2", ["s2"])]
+
+
+def test_different_pitch_next_to_a_note_stays_extra():
+    sung_notes = notes_at((60, 0.0, 0.5), (64, 0.52, 0.8), (62, 1.0, 1.8))
+    result = align(written("C4", "D4"), sung_notes)
+    assert [p["type"] for p in result["pairs"]] == ["match", "extra", "match"]
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_split_flat_note_in_mistakes_take(piece):
+    # The planted -35 cent note, split in two: merges; the planted extra (other pitch) stays an extra
+    expected = parse_score(score_path(piece))
+    raw = synth_notes(piece, "mistakes")
+    flat = next(i for i, n in enumerate(raw) if abs(n.midi - round(n.midi) + 0.35) < 1e-6)
+    sung_notes, answer = load_take(piece, "mistakes", split=[flat])
+    result = align(expected, sung_notes)
+    check_invariants(expected, sung_notes, result)
+    flat_id = next(i for i, v in answer["notes"].items() if v["status"] == "out_of_tune")
+    assert len(by_id(result)[flat_id]["sids"]) == 2
+    assert [p["near_id"] for p in result["pairs"] if p["type"] == "extra"] == [e["near_id"] for e in answer["extras"]]
+
+
+@pytest.mark.parametrize("piece", PIECES)
+def test_split_with_octave_down_upload_silence_and_jitter(piece):
+    expected = parse_score(score_path(piece))
+    sung_notes, _ = load_take(piece, "octave-down", split=[2, 5], jitter_ms=15, seed=4)
+    sung_notes = shifted(sung_notes, 1.5)
+    result = align(expected, sung_notes)
+    check_invariants(expected, sung_notes, result)
+    assert result["octave_shift"] == -12
+    assert {p["type"] for p in result["pairs"]} == {"match"}
+    assert sum(len(p["sids"]) == 2 for p in result["pairs"]) == 2

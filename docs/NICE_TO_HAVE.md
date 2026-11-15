@@ -31,6 +31,7 @@ Owner letters: A = Jason (frontend), B = Jonathan (audio + server), C = Mehul (m
 | 8 | **Any-key transposition** | Sing in any key, not just the written one or an octave off. Stage 4 would detect any semitone shift instead of only −12 / 0 / +12. | C (stage 4) |
 | 9 | **Lyrics, tone and breath** | Diction (were the right syllables sung), tone quality, whether breaths land in sensible places. Each needs new analysis beyond pitch and timing. | B, C |
 | 10 | **Scan any sheet music (OMR)** | Accept a PDF or photo and convert it to MusicXML (Audiveris or oemer) before stage 1. Risky: OMR mistakes look like singer mistakes. | B |
+| 11 | **Begin with the Starting Pitch**
 
 ## Not yet ranked
 

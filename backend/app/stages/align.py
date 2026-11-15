@@ -9,7 +9,7 @@ Steps (later parts fill in the marked ones):
   2. first pass, pitch only: octave shift = the shift whose pairing costs least
   3. time offset from that pass's near-right matches / tempo scale [3e: 1.0 for now]
   4. fill the table (pitch + timing) and trace back
-  5. split-note merge                               [3c: every match has one sid for now]
+  5. split-note merge: an extra that is really a piece of its neighbouring match joins it
   6. near_id on extras
 """
 
@@ -32,8 +32,20 @@ OCTAVE_SHIFTS = (0, -12, 12, -24, 24)
 
 # Time offset (DECISIONS.md section 3, "Time zero"): how far the singer's timeline is shifted from the
 # score's (silence before singing in an upload, browser recording delay). Measured, then removed.
-OFFSET_PITCH_TOL = 1.0  # semitones: only near-right pairs vote (a "wrong note" pair may be a wrong pairing)
+OFFSET_PITCH_TOL = 0.5  # semitones: only in-tune / out-of-tune pairs vote; a wrong-note pair (> 50 cents,
+#                         stage 5's line) may be a wrong pairing from the timing-free first pass
 MIN_OFFSET_PAIRS = 3  # fewer voting pairs than this -> too little to trust, offset 0
+
+# Split-note merge (DECISIONS.md 4.4): stage 3 sometimes cuts one sung note in two (vibrato, a dip in
+# loudness, a scoop into the note). The extra piece joins its neighbouring match when it is:
+MERGE_PITCH_TOL = 1.0  # within 1 semitone of the neighbouring piece (short pieces of a vibrato note
+#                        can land ~1 semitone apart: one catches the top of the wobble, one the bottom)
+MERGE_MAX_GAP_SEC = 0.2  # at most this much silence between the pieces (a deliberate re-sing has more)
+# ...and no closer in pitch to the written notes either side than to this one (so a note sliding
+# toward the next written note isn't swallowed by the previous one).
+# The table must know such a piece is cheap: priced as a full extra (3), it would rather shift every
+# later pairing by one note than pay for a wrong note + a piece. Merged afterwards, so it costs nothing.
+PIECE_EXTRA_COST = 0.5  # extra cost for a sung note that looks like a piece of its sung neighbour
 
 
 def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
@@ -52,7 +64,9 @@ def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
     time_offset = _time_offset(written, sung, octave_shift, first_pass)
     sung_beats = [(s["start_sec"] - time_offset) * tempo_scale * beats_per_sec for s in sung]
 
-    pairs, total = _fill_and_trace(written, sung, sung_beats, octave_shift)
+    pairs, _ = _fill_and_trace(written, sung, sung_beats, octave_shift)
+    pairs = _merge_split_notes(pairs, written, sung, octave_shift)
+    total = sum(p["cost"] for p in pairs)
 
     beat_of = {s["sid"]: b for s, b in zip(sung, sung_beats)}
     for pair in pairs:
@@ -118,6 +132,7 @@ def _fill_and_trace(
 ):
     """Edit-distance table: cell (i, j) = cheapest way to handle the first i written and j sung notes."""
     n, m = len(written), len(sung)
+    extra_cost = [PIECE_EXTRA_COST if _looks_like_piece(sung, j) else EXTRA_COST for j in range(m)]
     table = [[0.0] * (m + 1) for _ in range(n + 1)]
     move = [[None] * (m + 1) for _ in range(n + 1)]
     step = [[0.0] * (m + 1) for _ in range(n + 1)]  # cost of the winning move itself (per-pair debug cost)
@@ -133,7 +148,7 @@ def _fill_and_trace(
             if i > 0:  # written i-1 skipped (from above)
                 options.append((table[i - 1][j] + SKIP_COST, "skipped", SKIP_COST))
             if j > 0:  # sung j-1 extra (from the left)
-                options.append((table[i][j - 1] + EXTRA_COST, "extra", EXTRA_COST))
+                options.append((table[i][j - 1] + extra_cost[j - 1], "extra", extra_cost[j - 1]))
             best = min(options, key=lambda o: (round(o[0], 9), TIE_ORDER[o[1]]))  # round: float noise
             table[i][j], move[i][j], step[i][j] = best
 
@@ -158,3 +173,52 @@ def _near_id(all_notes: list[dict], beat: float) -> str:
         if n["onset_beats"] <= beat < n["onset_beats"] + n["duration_beats"]:
             return n["id"]
     return min(all_notes, key=lambda n: abs(n["onset_beats"] - beat))["id"]
+
+
+def _looks_like_piece(sung: list[dict], j: int) -> bool:
+    """Sung note j is within 1 semitone of a sung neighbour with at most a short gap between them."""
+    for k in (j - 1, j + 1):
+        if 0 <= k < len(sung):
+            a, b = (sung[k], sung[j]) if k < j else (sung[j], sung[k])
+            if b["start_sec"] - a["end_sec"] <= MERGE_MAX_GAP_SEC and abs(a["midi"] - b["midi"]) <= MERGE_PITCH_TOL:
+                return True
+    return False
+
+
+def _merge_split_notes(pairs: list[dict], written: list[dict], sung: list[dict], octave_shift: int) -> list[dict]:
+    """Fold extras that are really pieces of a neighbouring match into it (sids in time order).
+    Repeats until nothing changes, so a note cut into 3+ pieces ends up as one match."""
+    sung_by_sid = {s["sid"]: s for s in sung}
+    index_of = {w["id"]: k for k, w in enumerate(written)}
+    merged = True
+    while merged:
+        merged = False
+        for k, pair in enumerate(pairs):
+            if pair["type"] != "extra":
+                continue
+            for nb in (k - 1, k + 1):
+                if 0 <= nb < len(pairs) and pairs[nb]["type"] == "match":
+                    match = pairs[nb]
+                    if _is_piece_of(sung_by_sid[pair["sids"][0]], match, sung_by_sid, written, index_of, octave_shift):
+                        match["sids"] = sorted(match["sids"] + pair["sids"], key=lambda sid: sung_by_sid[sid]["start_sec"])
+                        del pairs[k]
+                        merged = True
+                        break
+            if merged:
+                break
+    return pairs
+
+
+def _is_piece_of(extra: dict, match: dict, sung_by_sid, written, index_of, octave_shift) -> bool:
+    pieces = [sung_by_sid[sid] for sid in match["sids"]]
+    if extra["start_sec"] < pieces[0]["start_sec"]:  # extra comes first: compare with the first piece
+        neighbour, gap = pieces[0], pieces[0]["start_sec"] - extra["end_sec"]
+    else:  # extra comes after: compare with the last piece
+        neighbour, gap = pieces[-1], extra["start_sec"] - pieces[-1]["end_sec"]
+    if gap > MERGE_MAX_GAP_SEC or abs(extra["midi"] - neighbour["midi"]) > MERGE_PITCH_TOL:
+        return False
+    k = index_of[match["id"]]
+    pitch = extra["midi"] - octave_shift
+    here = abs(pitch - written[k]["midi"])
+    sides = [written[i]["midi"] for i in (k - 1, k + 1) if 0 <= i < len(written)]
+    return all(here <= abs(pitch - m) for m in sides)

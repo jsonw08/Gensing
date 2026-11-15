@@ -176,7 +176,7 @@ All arrays have the same length.
 |---|---|---|
 | `octave_shift` | int | −24, −12, 0, +12 or +24 (±24: e.g. a soprano singing a bass line). Chosen by a pitch-only first pass run once per shift: the shift whose pairing costs least; on a tie the smallest shift. Stage 5 subtracts it from sung pitch. Non-octave shifts (another key) are not detected: that's nice-to-have "any-key transposition". |
 | `tempo_scale` | float | score time = sung time × `tempo_scale`. 1.0 in strict mode. |
-| `time_offset_sec` | float | Subtracted from sung times before aligning: median of (sung start − written start) over near-right matches (within 1 semitone) from a pitch-only first pass; 0 if fewer than 3. Covers upload lead-in silence and recording delay. `sung_notes` itself is not changed. |
+| `time_offset_sec` | float | Subtracted from sung times before aligning: median of (sung start − written start) over near-right matches (within 0.5 semitone, i.e. not wrong notes) from a pitch-only first pass; 0 if fewer than 3. Covers upload lead-in silence and recording delay. `sung_notes` itself is not changed. |
 | `total_cost` | float | Debug only |
 | `pairs` | array | Score order; extras placed where they happened. **Rests never appear.** |
 
@@ -193,6 +193,16 @@ Each pair:
 **Split-note merge:** if stage 3 cut one sung note in two, stage 4 pairs both pieces with one
 written note (`"sids": ["s1", "s2"]`). Stage 5 then uses start of the first piece, end of the
 last, and the duration-weighted average pitch.
+
+Rule (starting values, constants in `align.py`): an extra joins the match right before or after it
+when it is within **1 semitone** of that match's nearest sung piece (short pieces of one vibrato note
+can land ~1 semitone apart), with at most **0.2 s** of silence between them, and is no closer in pitch
+to the written notes either side than to this one (so a note sliding toward the next written note
+stays with that note). Repeats until nothing changes (3+ pieces → one match). Inside the table, a sung
+note that looks like a piece of its sung neighbour costs **0.5** as an extra instead of 3; otherwise the
+table would rather shift every later pairing by one note than pay for it. Not merged: grace notes and
+ornaments sung correctly (stage 1 skips grace notes, so they show as extras), and the opposite stage 3
+error (two written notes joined into one sung note shows as a skip).
 
 **Costs (starting values, tune on test takes):** pair = semitones apart (capped at 4) + 0.5 ×
 beats apart; skip = extra = 3. A 1–2 semitone error must cost less than skip + extra (6), so a
