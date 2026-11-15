@@ -1,0 +1,1128 @@
+/* Gensing desktop: a late-90s platinum desktop. Everything here hangs off `.desk` so the pages that
+   haven't moved to the desktop yet keep their old look. */
+
+@import '@fontsource/chivo-mono/400.css';
+@import '@fontsource/chivo-mono/700.css';
+@import '@fontsource/silkscreen/400.css';
+
+:root {
+  --desk: #7b86b8;
+  --desk-stripe: #8590c2;
+  --face: #e8e8e8; /* window, menu bar, button face */
+  --face-deep: #d4d4d4; /* toolbars, pressed wells */
+  --shade: #8a8a8a; /* bevel shadow */
+  --hilite: #ffffff; /* bevel highlight */
+  --frame: #000000;
+  --ink: #000000;
+  --ink-soft: #3b3b3b;
+  --muted: #5c5c5c;
+  --well: #ffffff;
+  --select: #3c4aa8; /* menu highlight, focus, selection */
+  --select-tint: #dde1f7;
+  --timing: #4b3fd1;
+  --in-tune: #1f9d55;
+  --out-of-tune: #d49b00;
+  --wrong: #d6334a;
+  --skipped: #9a948c;
+  --font-ui: 'Chivo Mono', ui-monospace, Menlo, monospace;
+  --font-pixel: 'Silkscreen', 'Chivo Mono', monospace;
+}
+
+.desk {
+  min-height: 100vh;
+  background-color: var(--desk);
+  background-image: repeating-linear-gradient(45deg, var(--desk) 0 2px, var(--desk-stripe) 2px 4px);
+  font: 13px/1.45 var(--font-ui);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+}
+.desk ::selection {
+  background: var(--select);
+  color: #fff;
+}
+.desk h2,
+.desk h3,
+.desk h4,
+.desk p,
+.desk ul,
+.desk ol {
+  margin: 0;
+}
+.desk button {
+  font: inherit;
+  color: inherit;
+}
+.desk :focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
+}
+
+/* Retro scrollbars: checkered track, bevelled thumb. */
+/* Firefox only: in Chrome, scrollbar-color would switch off the ::-webkit-scrollbar rules below. */
+@supports not selector(::-webkit-scrollbar) {
+  .desk * {
+    scrollbar-color: var(--face) #c9c9c9;
+  }
+}
+.desk ::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+.desk ::-webkit-scrollbar-track {
+  background: repeating-conic-gradient(#c9c9c9 0 25%, #e0e0e0 0 50%) 0 0 / 2px 2px;
+  border-left: 1px solid var(--frame);
+}
+.desk ::-webkit-scrollbar-corner {
+  background: var(--face);
+}
+.desk ::-webkit-scrollbar-thumb {
+  background: var(--face);
+  border: 1px solid var(--frame);
+  box-shadow: inset 1px 1px 0 var(--hilite), inset -1px -1px 0 var(--shade);
+}
+
+/* ---------- menu bar ---------- */
+
+.menubar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex: none;
+  height: 26px;
+  display: flex;
+  align-items: stretch;
+  padding: 0 10px;
+  background: var(--face);
+  border-bottom: 1px solid var(--frame);
+  user-select: none;
+}
+.menubar-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px 0 2px;
+  font: 14px var(--font-pixel);
+  letter-spacing: 0.04em;
+}
+.menu {
+  position: relative;
+  display: flex;
+}
+.menu-title {
+  border: 0;
+  background: none;
+  padding: 0 11px;
+  cursor: default;
+}
+.menu-title.open {
+  background: var(--select);
+  color: #fff;
+}
+.menu-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 210px;
+  padding: 3px 0;
+  background: var(--face);
+  border: 1px solid var(--frame);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 3px 18px 3px 4px;
+  white-space: nowrap;
+  cursor: default;
+}
+.menu-item:hover:not(:disabled),
+.menu-item:focus-visible {
+  background: var(--select);
+  color: #fff;
+  outline: none;
+}
+.menu-item:disabled {
+  color: #9a9a9a;
+}
+.menu-check {
+  width: 20px;
+  display: inline-flex;
+  justify-content: center;
+}
+.menu-sep {
+  height: 0;
+  margin: 3px 0;
+  border-top: 1px dotted var(--shade);
+}
+.menubar-clock {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- windows ---------- */
+
+.window {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--face);
+  border: 1px solid var(--frame);
+  box-shadow: 2px 2px 0 var(--frame);
+}
+.titlebar {
+  position: relative;
+  flex: none;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--frame);
+  padding: 0 30px;
+}
+.titlebar::before {
+  content: '';
+  position: absolute;
+  inset: 4px 4px;
+  background: repeating-linear-gradient(to bottom, #a3a3a3 0 1px, var(--face) 1px 2px);
+}
+.titlebar-text {
+  position: relative;
+  max-width: 100%;
+  padding: 0 9px;
+  background: var(--face);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.closebox {
+  position: absolute;
+  left: 9px;
+  top: 4px;
+  width: 13px;
+  height: 13px;
+  background: var(--face);
+  border: 1px solid var(--frame);
+  box-shadow: inset 1px 1px 0 var(--hilite), inset -1px -1px 0 var(--shade);
+  z-index: 1;
+}
+.window-toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--shade);
+  box-shadow: 0 1px 0 var(--hilite);
+}
+.window-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+.window-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--shade);
+  box-shadow: inset 0 1px 0 var(--hilite);
+}
+
+/* A recessed white area (lists, the score page, text fields). */
+.well {
+  background: var(--well);
+  border: 1px solid var(--frame);
+  box-shadow: -1px -1px 0 var(--shade), 1px 1px 0 var(--hilite);
+}
+
+/* ---------- controls ---------- */
+
+.button {
+  min-height: 26px;
+  padding: 3px 16px;
+  border: 1px solid var(--frame);
+  border-radius: 7px;
+  background: var(--face);
+  box-shadow: inset 1px 1px 0 var(--hilite), inset -1px -1px 0 var(--shade);
+  white-space: nowrap;
+  cursor: default;
+}
+.button:active:not(:disabled) {
+  background: #595959;
+  color: #fff;
+  box-shadow: inset 1px 1px 0 #2f2f2f;
+}
+.button:disabled {
+  color: #9a9a9a;
+  border-color: #9a9a9a;
+}
+/* The default button (what Return does) wears the heavy ring. */
+.button.default {
+  outline: 2px solid var(--frame);
+  outline-offset: 2px;
+  margin: 3px;
+}
+.button.default:focus-visible {
+  outline-color: var(--select);
+}
+.button.default:disabled {
+  outline-color: #9a9a9a;
+}
+.icon-button {
+  width: 30px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
+.radio-group {
+  border: 1px solid var(--shade);
+  box-shadow: 1px 1px 0 var(--hilite), inset 1px 1px 0 var(--hilite);
+  padding: 6px 10px 8px;
+  margin: 0;
+  min-width: 0;
+}
+.radio-group legend {
+  padding: 0 5px;
+  font-weight: 700;
+}
+.radio-group.busy {
+  opacity: 0.6;
+}
+.radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.radio input {
+  appearance: none;
+  margin: 0;
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--frame);
+  border-radius: 50%;
+  background: var(--well);
+  box-shadow: inset 1px 1px 0 var(--shade);
+}
+.radio input:checked {
+  background: radial-gradient(circle, var(--ink) 0 2.5px, var(--well) 3px);
+}
+.radio input:disabled + span {
+  color: #8a8a8a;
+}
+
+.slider {
+  appearance: none;
+  flex: 1;
+  min-width: 80px;
+  height: 16px;
+  background: transparent;
+  margin: 0;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 6px;
+  background: var(--well);
+  border: 1px solid var(--frame);
+  box-shadow: inset 1px 1px 0 var(--shade);
+}
+.slider::-moz-range-track {
+  height: 6px;
+  background: var(--well);
+  border: 1px solid var(--frame);
+}
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 11px;
+  height: 16px;
+  margin-top: -6px;
+  background: var(--face);
+  border: 1px solid var(--frame);
+  box-shadow: inset 1px 1px 0 var(--hilite), inset -1px -1px 0 var(--shade);
+}
+.slider::-moz-range-thumb {
+  width: 9px;
+  height: 14px;
+  border-radius: 0;
+  background: var(--face);
+  border: 1px solid var(--frame);
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  max-width: 460px;
+}
+.player audio {
+  display: none;
+}
+.player-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink-soft);
+}
+
+/* ---------- dialogs and progress ---------- */
+
+.dialog {
+  width: min(420px, 100%);
+  background: var(--face);
+  border: 1px solid var(--frame);
+  box-shadow:
+    inset 0 0 0 3px var(--face),
+    inset 0 0 0 4px var(--shade),
+    2px 2px 0 var(--frame);
+  padding: 18px 20px 16px;
+}
+.dialog-main {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.dialog-icon {
+  flex: none;
+}
+.dialog-text {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.progress {
+  height: 13px;
+  border: 1px solid var(--frame);
+  background: repeating-linear-gradient(-45deg, var(--select) 0 5px, #c9cef0 5px 10px);
+  background-size: 28px 28px;
+  animation: barber 0.9s linear infinite;
+}
+@keyframes barber {
+  to {
+    background-position: 28px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress {
+    animation: none;
+  }
+}
+
+/* ---------- working screens (Practice, Results): score left, two windows right ---------- */
+
+/* A working screen is exactly one viewport tall; windows scroll inside, the desktop never does. */
+.desk.fit {
+  height: 100vh;
+  overflow: hidden;
+}
+.work-desk {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(400px, 33vw, 500px);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 22px 26px;
+  padding: 22px 28px 28px 24px;
+}
+.work-desk .score-window {
+  grid-row: 1 / 3;
+}
+@media (max-width: 1080px) {
+  .desk.fit {
+    height: auto;
+    overflow: visible;
+  }
+  .work-desk {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+  .work-desk .score-window {
+    grid-row: auto;
+    height: 80vh;
+  }
+}
+
+/* Score window: the page sits in a white well. */
+.score-window .window-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.score-page {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.score-page .score-wrap {
+  padding: 8px 6px 20px;
+}
+.score-page .dialog-holder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: start center;
+  padding-top: 18%;
+  background: rgba(255, 255, 255, 0.72);
+  z-index: 5;
+}
+.toolbar-note {
+  margin-left: auto;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Legend: a status strip along the bottom of the score window. */
+.legend {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  padding: 8px 2px 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend .swatch {
+  width: 16px;
+  height: 12px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18); /* pale tints need an edge on the grey face */
+}
+.legend-hint {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+/* ---------- marks over the score ---------- */
+
+.score-wrap {
+  position: relative;
+}
+.score-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* Highlight bands: flat pastel boxes over the staff (multiplied, so the black notes stay crisp). */
+.mark-highlight {
+  position: absolute;
+  border-radius: 7px;
+  opacity: 0.26;
+  mix-blend-mode: multiply;
+}
+.mark-highlight.faded {
+  opacity: 0.12;
+}
+/* In-tune runs: a very pale green, so the problems stand out. */
+.mark-highlight.subtle {
+  opacity: 0.1;
+}
+.mark-highlight.subtle.faded {
+  opacity: 0.05;
+}
+/* A dot above each note with a problem (its colour says which); the balloon has the details. */
+.mark-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+  cursor: help;
+}
+.mark-dot::before {
+  content: ''; /* a bigger target than the dot itself */
+  position: absolute;
+  inset: -7px;
+}
+.mark-dot.faded {
+  opacity: 0.4;
+}
+.mark-hit {
+  position: absolute;
+  pointer-events: auto;
+  cursor: help;
+}
+/* Bars picked from a coach tip: a marching-ants selection, like a selected region (the tip lists the bars). */
+.mark-bar {
+  position: absolute;
+  background:
+    linear-gradient(90deg, var(--frame) 50%, transparent 0) repeat-x top left / 8px 1px,
+    linear-gradient(90deg, var(--frame) 50%, transparent 0) repeat-x bottom left / 8px 1px,
+    linear-gradient(0deg, var(--frame) 50%, transparent 0) repeat-y top left / 1px 8px,
+    linear-gradient(0deg, var(--frame) 50%, transparent 0) repeat-y top right / 1px 8px;
+  animation: ants 0.6s linear infinite;
+}
+@keyframes ants {
+  to {
+    background-position:
+      8px 0,
+      -8px 100%,
+      0 -8px,
+      100% 8px,
+      0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mark-bar {
+    animation: none;
+  }
+}
+/* Hover details as a help balloon. */
+.score-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 14px));
+  z-index: 10;
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+  padding: 8px 12px;
+  background: #fffff2;
+  border: 1px solid var(--frame);
+  border-radius: 12px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+  font: 12px/1.4 var(--font-ui);
+  white-space: nowrap;
+}
+.score-tip::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - 7px + var(--tail, 0px));
+  bottom: -8px;
+  width: 13px;
+  height: 13px;
+  background: #fffff2;
+  border-right: 1px solid var(--frame);
+  border-bottom: 1px solid var(--frame);
+  transform: skewX(-25deg) rotate(45deg) scale(0.8, 1);
+}
+.score-tip strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.score-tip i {
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+/* ---------- Results window ---------- */
+
+.results-window,
+.coach-window {
+  font-size: 14px;
+}
+.results-window .window-body {
+  display: grid;
+  gap: 14px;
+}
+.total {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+.total-number {
+  font: 64px/0.9 var(--font-pixel);
+  letter-spacing: -0.02em;
+}
+.total-number.busy {
+  color: #9a9a9a;
+}
+.total-caption {
+  padding-bottom: 4px;
+  color: var(--ink-soft);
+  display: grid;
+}
+.score-rows {
+  list-style: none;
+  padding: 0;
+  display: grid;
+}
+.score-rows li {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px dotted var(--shade);
+}
+.score-rows b {
+  font-variant-numeric: tabular-nums;
+}
+.notes-meter {
+  display: flex;
+  height: 12px;
+  padding: 1px;
+}
+.notes-meter span {
+  min-width: 3px;
+}
+.notes-meter span + span {
+  border-left: 1px solid #fff;
+}
+.score-meta {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.grading-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 2px 0;
+}
+.grading-label {
+  color: var(--ink-soft);
+}
+
+/* ---------- Coach window ---------- */
+
+/* Before there's feedback the Coach window is only as tall as its prompt; the desktop shows below it. */
+.work-desk .coach-window.compact {
+  align-self: start;
+}
+.coach-window .window-body {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+.coach-intro {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.coach-intro .icon {
+  flex: none;
+}
+.coach-intro-text {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.coach-source {
+  color: var(--muted);
+  font-size: 12px;
+}
+.coach-summary {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.coach-window h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.coach-strengths {
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  line-height: 1.6;
+}
+.coach-tips {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.coach-tip {
+  padding: 11px 13px;
+  border: 1px solid var(--shade);
+  background: var(--well);
+  display: grid;
+  gap: 6px;
+  line-height: 1.6;
+}
+.coach-tip.clickable {
+  cursor: pointer;
+}
+.coach-tip.clickable:hover {
+  border-color: var(--frame);
+}
+.coach-tip.selected {
+  background: var(--select-tint);
+  border-color: var(--select);
+  box-shadow: inset 0 0 0 1px var(--select);
+}
+.coach-tip-title {
+  font-weight: 700;
+}
+.coach-tip-bars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.coach-tip-bars span {
+  padding: 0 6px;
+  border: 1px solid var(--frame);
+  font-size: 12.5px;
+  background: var(--face);
+}
+.coach-tip.selected .coach-tip-bars span {
+  background: var(--select);
+  border-color: var(--select);
+  color: #fff;
+}
+.legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Short laptop screens: tighten the Results window so the Coach window keeps room. */
+@media (max-height: 820px) and (min-width: 1081px) {
+  .results-window .window-body {
+    gap: 9px;
+    padding: 10px 12px;
+  }
+  .total-number {
+    font-size: 48px;
+  }
+  .score-rows {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 20px;
+  }
+  .score-rows li {
+    padding: 2px 0;
+  }
+  .radio-group {
+    padding: 3px 10px 6px;
+  }
+}
+
+/* ---------- Practice screen ---------- */
+
+/* Dropping a score on the window: a marching-ants outline around the page. */
+.score-page.dropping {
+  outline: 2px dashed var(--select);
+  outline-offset: -6px;
+}
+.recorder-window,
+.takes-window {
+  font-size: 14px;
+}
+.recorder-window .window-body {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.counter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #1d2030;
+  color: #e9ecff;
+  border: 1px solid var(--frame);
+  box-shadow: -1px -1px 0 var(--shade), 1px 1px 0 var(--hilite);
+}
+.counter-label {
+  flex: 1;
+}
+.counter-time {
+  font: 26px/1 var(--font-pixel);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+/* Status lamp: grey idle, amber count-in, red (blinking) recording, green recorded. */
+.lamp {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid #000;
+  background: #6f6f6f;
+  flex: none;
+}
+.lamp.countin {
+  background: #f2b318;
+}
+.lamp.recording {
+  background: #e3283f;
+  animation: blink 1s steps(2, start) infinite;
+}
+.lamp.stopped {
+  background: #2fbf6b;
+}
+.lamp.big {
+  width: 30px;
+  height: 30px;
+  animation: none;
+}
+@keyframes blink {
+  to {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lamp.recording {
+    animation: none;
+  }
+}
+.tempo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+.tempo-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.tempo-hint {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.field {
+  width: 64px;
+  height: 26px;
+  padding: 2px 6px;
+  font: inherit;
+  background: var(--well);
+  border: 1px solid var(--frame);
+  box-shadow: inset 1px 1px 0 var(--shade);
+  border-radius: 0;
+}
+.field:disabled {
+  color: #8a8a8a;
+  background: #f2f2f2;
+}
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.inline-alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: var(--ink);
+  font-size: 13px;
+}
+.inline-alert .icon {
+  flex: none;
+}
+
+/* Takes: a file-list view (column headers, selectable rows). */
+.takes-window .window-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 12px;
+}
+.list {
+  overflow: auto;
+  min-height: 90px;
+}
+.list-head,
+.list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 84px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+.list-head {
+  position: sticky;
+  top: 0;
+  height: 22px;
+  background: var(--face);
+  border-bottom: 1px solid var(--frame);
+  box-shadow: inset 1px 1px 0 var(--hilite);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.list-row {
+  height: 28px;
+  cursor: default;
+  font-variant-numeric: tabular-nums;
+}
+.list-row:nth-child(odd) {
+  background: #f4f5fb;
+}
+.list-row.selected {
+  background: var(--select);
+  color: #fff;
+}
+.list-row:focus-visible {
+  outline-offset: -2px;
+}
+.list-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.list-empty {
+  padding: 14px 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.footer-gap {
+  flex: 1;
+}
+.takes-window .window-footer {
+  justify-content: flex-start;
+}
+
+/* Count-in and "Sing!": a dialog over the desktop. Purely informative, so it never blocks Stop. */
+.modal-layer {
+  position: fixed;
+  /* over the right-hand column, so the score stays readable during the count-in */
+  inset: 26px 0 0 auto;
+  width: calc(clamp(400px, 33vw, 500px) + 28px);
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.modal-layer .dialog {
+  width: 340px;
+}
+.countin {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.countin-beat {
+  font: 64px/1 var(--font-pixel);
+  min-width: 48px;
+}
+.countin-dots {
+  display: flex;
+  gap: 6px;
+}
+.countin-dots i {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--frame);
+  background: var(--well);
+}
+.countin-dots i.on {
+  background: var(--frame);
+}
+.sing-now {
+  font: 32px/1 var(--font-pixel);
+}
+
+/* ---------- Welcome screen ---------- */
+
+.welcome-desk {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 600px);
+  justify-content: center;
+  align-content: center;
+  padding: 28px;
+  overflow: auto;
+}
+.welcome-window {
+  font-size: 14px;
+}
+.welcome-window .window-body {
+  display: grid;
+  gap: 18px;
+  padding: 24px 28px 26px;
+}
+.welcome-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.welcome-head .icon {
+  flex: none;
+}
+.welcome-name {
+  margin: 0;
+  font: 44px/1 var(--font-pixel);
+  letter-spacing: 0.02em;
+}
+.welcome-window .welcome-lede {
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.welcome-sample {
+  margin: 0;
+  padding: 10px 14px 12px;
+}
+.welcome-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.welcome-steps {
+  padding-left: 24px;
+  display: grid;
+  gap: 6px;
+}
+.welcome-steps li::marker {
+  font-weight: 700;
+}
+@media (max-width: 600px) {
+  .welcome-desk {
+    padding: 16px;
+    align-content: start;
+  }
+  .welcome-window .window-body {
+    padding: 16px;
+  }
+}
+
+/* A balloon that opens below its note (near the top of the visible page): tail on top. */
+.score-tip.below {
+  transform: translate(-50%, 14px);
+}
+.score-tip.below::after {
+  bottom: auto;
+  top: -8px;
+  border: 0;
+  border-left: 1px solid var(--frame);
+  border-top: 1px solid var(--frame);
+}
+@media (max-width: 1080px) {
+  .modal-layer {
+    inset: 26px 0 0;
+    width: auto;
+  }
+}

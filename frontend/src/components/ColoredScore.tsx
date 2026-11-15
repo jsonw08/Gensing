@@ -1,26 +1,31 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import type React from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import type { Results } from '../lib/api'
-import { type Box, measureBoxes, type NoteTip, paintScore, STATUS_COLOR, type ScoreMark } from '../lib/colorScore'
+import { alignMarks, type Box, measureBoxes, type NoteTip, paintScore, STATUS_COLOR, type ScoreMark, TIMING_COLOR } from '../lib/colorScore'
 import type { NoteIdEntry } from '../lib/noteIds'
 import { ScoreView } from './ScoreView'
 
 // The score with every note colored from `results` (or plain while results is null). Colors are
 // re-applied after every OSMD render (resize) and whenever `results` changes (e.g. re-graded in another
 // mode), without reloading the score. `highlightBars` outlines those bars and scrolls to the first.
+// The score scrolls inside `.score-page`; the legend sits under it, outside the scroll.
 export function ColoredScore({
   xml,
   results,
   highlightBars = [],
+  children,
 }: {
   xml: string
   results: Results | null
   highlightBars?: number[]
+  /** Drawn over the page (e.g. an "Analyzing…" dialog). */
+  children?: ReactNode
 }) {
   const overlayRef = useRef<HTMLDivElement>(null)
   const entriesRef = useRef<NoteIdEntry[] | null>(null)
   const [marks, setMarks] = useState<ScoreMark[]>([])
   const [bars, setBars] = useState<Map<number, Box>>(new Map())
-  const [tip, setTip] = useState<{ x: number; y: number; tip: NoteTip } | null>(null)
+  const [tip, setTip] = useState<{ x: number; y: number; tail: number; below: boolean; tip: NoteTip } | null>(null)
 
   const paint = useCallback((r: Results | null) => {
     const entries = entriesRef.current
@@ -31,7 +36,7 @@ export function ColoredScore({
     const known = new Set(entries.map((e) => e.id))
     const missing = r.notes.filter((n) => !known.has(n.id)).map((n) => n.id)
     if (missing.length) console.warn('[color] result IDs with no note in this score:', missing)
-    setMarks(paintScore(entries, r, overlayRef.current))
+    setMarks(alignMarks(paintScore(entries, r, overlayRef.current), overlayRef.current))
   }, [])
 
   const resultsRef = useRef(results)
@@ -48,121 +53,140 @@ export function ColoredScore({
     [paint],
   )
 
-  // Scroll the first highlighted bar into view when the highlight changes.
+  // Scroll the page (only the page, never the desktop around it) to center the first highlighted bar.
+  const pageRef = useRef<HTMLDivElement>(null)
   const firstBarRef = useRef<HTMLSpanElement>(null)
   const barsKey = highlightBars.join(',')
   useEffect(() => {
-    if (barsKey) firstBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const page = pageRef.current
+    const bar = firstBarRef.current
+    if (!barsKey || !page || !bar) return
+    const p = page.getBoundingClientRect()
+    const b = bar.getBoundingClientRect()
+    page.scrollTo({ top: page.scrollTop + b.top - p.top - (page.clientHeight - b.height) / 2, behavior: 'smooth' })
   }, [barsKey])
 
-  const showTip = (m: { x: number; y: number; w: number; tip: NoteTip }) => setTip({ x: m.x + m.w / 2, y: m.y, tip: m.tip })
+  // The balloon sits above the note, or below it when it would run off the top of the visible page; it's
+  // kept inside the page sideways, with its tail still pointing at the note.
+  const showTip = (m: { x: number; y: number; w: number; h: number; tip: NoteTip }) => {
+    const overlay = overlayRef.current
+    const page = pageRef.current
+    if (!overlay || !page) return
+    const longest = Math.max(m.tip.title.length + 3, ...m.tip.lines.map((l) => l.length))
+    const width = Math.max(150, longest * 7.3 + 26)
+    const height = 30 + 17 * m.tip.lines.length
+    const center = m.x + m.w / 2
+    const x = Math.min(Math.max(center, width / 2 + 4), overlay.clientWidth - width / 2 - 4)
+    const visibleTop = page.getBoundingClientRect().top - overlay.getBoundingClientRect().top
+    const below = m.y - height - 16 < visibleTop
+    setTip({ x, y: below ? m.y + m.h : m.y, tail: center - x, below, tip: m.tip })
+  }
+  const tipLabel = (t: NoteTip) => `${t.title}: ${t.lines.join(', ')}`
   const shown = highlightBars.filter((b) => bars.has(b))
 
   return (
     <>
-      {results && <Legend />}
-      <ScoreView xml={xml} onRendered={onRendered}>
-        <div ref={overlayRef} className="score-overlay">
-          {shown.map((b, i) => {
-            const box = bars.get(b)!
-            return (
-              <span
-                key={`bar-${b}`}
-                ref={i === 0 ? firstBarRef : undefined}
-                className="mark-bar"
-                style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+      <div ref={pageRef} className="score-page well">
+        {children}
+        <ScoreView xml={xml} onRendered={onRendered}>
+          <div ref={overlayRef} className="score-overlay">
+            {shown.map((b, i) => {
+              const box = bars.get(b)!
+              return (
+                <span
+                  key={`bar-${b}`}
+                  ref={i === 0 ? firstBarRef : undefined}
+                  className="mark-bar"
+                  // reaches up past the row of dots, so a dot never sits on the dashed edge
+                  style={{ left: box.x, top: box.y - 16, width: box.w, height: box.h + 16 }}
+                  aria-label={`Bar ${b}`}
+                />
+              )
+            })}
+            {marks.map((m, i) => {
+              if (m.kind === 'highlight')
+                return (
+                  <span
+                    key={i}
+                    className={`mark-highlight${m.faded ? ' faded' : ''}${m.subtle ? ' subtle' : ''}`}
+                    style={{
+                      left: m.x,
+                      top: m.y,
+                      width: m.w,
+                      height: m.h,
+                      background: m.color,
+                    }}
+                  />
+                )
+              if (m.kind === 'hit')
+                return (
+                  <span
+                    key={i}
+                    className="mark-hit"
+                    style={{ left: m.x, top: m.y, width: m.w, height: m.h }}
+                    onMouseEnter={() => showTip(m)}
+                    onMouseLeave={() => setTip(null)}
+                  />
+                )
+              // Dots are buttons, so the details are reachable from the keyboard too (Tab, then the balloon).
+              const dot = { x: m.x - 4, y: m.y - 8, w: 8, h: 8, tip: m.tip }
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  className={`mark-dot${m.faded ? ' faded' : ''}`}
+                  style={{ left: m.x, top: m.y, background: m.color }}
+                  aria-label={tipLabel(m.tip)}
+                  onMouseEnter={() => showTip(dot)}
+                  onMouseLeave={() => setTip(null)}
+                  onFocus={() => showTip(dot)}
+                  onBlur={() => setTip(null)}
+                />
+              )
+            })}
+            {tip && (
+              <div
+                className={`score-tip${tip.below ? ' below' : ''}`}
+                style={{ left: tip.x, top: tip.y, '--tail': `${tip.tail}px` } as React.CSSProperties}
+                role="tooltip"
               >
-                <span>Bar {b}</span>
-              </span>
-            )
-          })}
-          {marks.map((m, i) => {
-            if (m.kind === 'highlight')
-              return (
-                <span
-                  key={i}
-                  className={`mark-highlight${m.faded ? ' faded' : ''}${m.subtle ? ' subtle' : ''}`}
-                  style={{
-                    left: m.x,
-                    top: m.y,
-                    width: m.w,
-                    height: m.h,
-                    // soft glow: solid over the staff, fading out above and below it
-                    background: `linear-gradient(to bottom, transparent, ${m.color} 30%, ${m.color} 70%, transparent)`,
-                  }}
-                />
-              )
-            if (m.kind === 'hit')
-              return (
-                <span
-                  key={i}
-                  className="mark-hit"
-                  style={{ left: m.x, top: m.y, width: m.w, height: m.h }}
-                  onMouseEnter={() => showTip(m)}
-                  onMouseLeave={() => setTip(null)}
-                />
-              )
-            if (m.kind === 'extra')
-              return (
-                <span
-                  key={i}
-                  className="mark-extra"
-                  style={{ left: m.x, top: m.y }}
-                  onMouseEnter={() => showTip({ x: m.x, y: m.y - 10, w: 10, tip: m.tip })}
-                  onMouseLeave={() => setTip(null)}
-                >
-                  +{m.count > 1 ? m.count : ''}
-                </span>
-              )
-            return (
-              <span key={i} className="mark-label" style={{ left: m.x, top: m.y }}>
-                {m.parts.map((p, j) => (
-                  <span key={j} style={{ color: p.color }}>
-                    {p.text}
-                  </span>
+                <strong>
+                  <i style={{ background: tip.tip.color }} />
+                  {tip.tip.title}
+                </strong>
+                {tip.tip.lines.map((line, i) => (
+                  <span key={i}>{line}</span>
                 ))}
-              </span>
-            )
-          })}
-          {tip && (
-            <div className="score-tip" style={{ left: tip.x, top: tip.y }} role="tooltip">
-              <strong>
-                <i style={{ background: tip.tip.color }} />
-                {tip.tip.title}
-              </strong>
-              {tip.tip.lines.map((line, i) => (
-                <span key={i}>{line}</span>
-              ))}
-            </div>
-          )}
-        </div>
-      </ScoreView>
+              </div>
+            )}
+          </div>
+        </ScoreView>
+      </div>
+      {results && <Legend />}
     </>
   )
 }
 
 function Legend() {
-  const items: [string, string][] = [
+  const swatches: [string, string][] = [
     ['In tune', STATUS_COLOR.in_tune],
-    ['Out of tune ↑↓', STATUS_COLOR.out_of_tune],
+    ['Out of tune', STATUS_COLOR.out_of_tune],
     ['Wrong note', STATUS_COLOR.wrong_note],
-    ['Skipped ✕', STATUS_COLOR.skipped],
+    ['Skipped', STATUS_COLOR.skipped],
   ]
   return (
     <div className="legend">
-      {items.map(([label, color]) => (
+      {swatches.map(([label, color]) => (
         <span key={label}>
-          <i style={{ background: color, borderColor: color }} />
+          <i className="swatch" style={{ background: `color-mix(in srgb, ${color} ${label === 'In tune' ? 16 : 30}%, white)` }} />
           {label}
         </span>
       ))}
       <span>
-        <b style={{ color: STATUS_COLOR.wrong_note }}>+</b> Extra note
+        <i className="legend-dot" style={{ background: TIMING_COLOR }} />
+        Early / late
       </span>
-      <span>
-        <b style={{ color: '#4b3fd1' }}>early / late</b> Timing
-      </span>
-      <span className="legend-hint">Hover a note for details</span>
+      <span className="legend-hint">Point at a dot for details</span>
     </div>
   )
 }

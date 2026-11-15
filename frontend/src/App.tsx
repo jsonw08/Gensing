@@ -26,6 +26,12 @@ export default function App() {
         />
       )
     case 'evaluate':
-      return <Evaluate take={screen.take} onBack={() => setScreen({ name: 'practice' })} />
+      return (
+        <Evaluate
+          take={screen.take}
+          onBack={() => setScreen({ name: 'practice' })}
+          onHome={() => setScreen({ name: 'welcome' })}
+        />
+      )
   }
 }

@@ -1,5 +1,6 @@
 import type { Results } from '../lib/api'
 import { STATUS_COLOR } from '../lib/colorScore'
+import { Progress } from './desktop/Window'
 
 /** How the take is graded (sent to /analyze; changing it re-analyzes). */
 export type Grading = { mode: 'free' | 'strict'; preset: 'default' | 'beginner' | 'advanced' }
@@ -16,7 +17,6 @@ const PRESETS: { value: Grading['preset']; label: string; hint: string }[] = [
 
 // The overall score (results.score) and what it's made of: the demo's "overall score" must-have.
 // Weights and rules: docs/DECISIONS.md 4.5 (stage 5 computes everything; nothing is calculated here).
-
 const PARTS: { key: 'pitch' | 'intonation' | 'rhythm' | 'completeness'; label: string; hint: string }[] = [
   { key: 'pitch', label: 'Pitch', hint: 'Notes sung on the right pitch (50% of the total)' },
   { key: 'intonation', label: 'Intonation', hint: 'How close to the center of the note, right notes only (25%)' },
@@ -24,8 +24,7 @@ const PARTS: { key: 'pitch' | 'intonation' | 'rhythm' | 'completeness'; label: s
   { key: 'completeness', label: 'Completeness', hint: 'Nothing skipped, nothing extra (10%)' },
 ]
 
-// Pitch result per written note: one bar segment each (colors explained by the legend over the score;
-// the count shows on hover). Timing and extras are marked on the score itself.
+// Pitch result per written note: one meter segment each (colors match the score's legend).
 const PITCH: { key: string; label: string; color: string }[] = [
   { key: 'in_tune', label: 'in tune', color: STATUS_COLOR.in_tune },
   { key: 'out_of_tune', label: 'out of tune', color: STATUS_COLOR.out_of_tune },
@@ -33,19 +32,13 @@ const PITCH: { key: string; label: string; color: string }[] = [
   { key: 'skipped', label: 'skipped', color: STATUS_COLOR.skipped },
 ]
 
-function verdict(total: number): { word: string; color: string } {
-  if (total >= 90) return { word: 'Excellent', color: STATUS_COLOR.in_tune }
-  if (total >= 75) return { word: 'Good', color: STATUS_COLOR.in_tune }
-  if (total >= 55) return { word: 'Getting there', color: STATUS_COLOR.out_of_tune }
-  return { word: 'Keep practicing', color: STATUS_COLOR.wrong_note }
-}
-
 function octaveNote(shift: number): string | null {
   if (shift === 0) return null
   const n = Math.abs(shift) / 12
   return `Sung ${n === 1 ? 'an octave' : `${n} octaves`} ${shift < 0 ? 'lower' : 'higher'} than written.`
 }
 
+/** The Results window's contents: total, the four parts, the notes meter and the grading settings. */
 export function ScoreCard({
   results,
   grading,
@@ -59,56 +52,36 @@ export function ScoreCard({
 }) {
   const { score, counts, meta } = results
   const c = (k: string) => counts[k] ?? 0
-  const v = verdict(score.total)
   const pitch = PITCH.filter((p) => c(p.key) > 0)
   const octave = octaveNote(meta.octave_shift)
   const uncertain = c('uncertain')
 
   return (
-    <section className={`score-card${busy ? ' busy' : ''}`} aria-label="Score" aria-busy={busy}>
-      <header className="score-head">
-        <div>
-          <span className="score-eyebrow">Overall</span>
-          <span className="score-total">
-            {score.total}
-            <small>/100</small>
+    <>
+      <div className="total" aria-busy={busy}>
+        <span className={`total-number${busy ? ' busy' : ''}`}>{score.total}</span>
+        <span className="total-caption">
+          <span>out of 100</span>
+          <span>
+            {c('in_tune')} of {c('notes')} notes in tune
           </span>
-        </div>
-        {busy ? (
-          <span className="score-pill updating">Re-scoring…</span>
-        ) : (
-          <span className="score-pill" style={{ color: v.color, background: `color-mix(in srgb, ${v.color} 12%, white)` }}>
-            {v.word}
-          </span>
-        )}
-      </header>
+        </span>
+      </div>
+      {busy && <Progress label="Re-scoring" />}
 
-      <ul className="score-parts">
+      <ul className="score-rows">
         {PARTS.map((p) => (
           <li key={p.key} title={p.hint}>
-            <span className="score-eyebrow">{p.label}</span>
-            <span className="score-part-value">{score[p.key]}</span>
-            <span className="score-bar" aria-hidden="true">
-              <span style={{ width: `${score[p.key]}%` }} />
-            </span>
+            <span>{p.label}</span>
+            <b>{score[p.key]}</b>
           </li>
         ))}
       </ul>
 
-      <div className="score-notes-block">
-        <div className="score-row">
-          <span className="score-eyebrow">Notes</span>
-          <span className="score-row-value">
-            {c('in_tune')} of {c('notes')} in tune
-          </span>
-        </div>
-        <div className="score-split">
+      <div>
+        <div className="notes-meter well" role="img" aria-label={pitch.map((p) => `${c(p.key)} ${p.label}`).join(', ')}>
           {pitch.map((p) => (
-            <span
-              key={p.key}
-              title={`${c(p.key)} ${p.label}${p.key === 'wrong_note' && c(p.key) > 1 ? 's' : ''}`}
-              style={{ flexGrow: c(p.key), background: p.color }}
-            />
+            <span key={p.key} title={`${c(p.key)} ${p.label}`} style={{ flexGrow: c(p.key), background: p.color }} />
           ))}
         </div>
         {octave && <p className="score-meta">{octave}</p>}
@@ -120,48 +93,52 @@ export function ScoreCard({
       </div>
 
       {grading && onGradingChange && (
-        <div className="score-settings">
-          <div className="score-row">
-            <span className="score-eyebrow">Timing</span>
-            <Segmented options={MODES} value={grading.mode} disabled={busy} onChange={(mode) => onGradingChange({ ...grading, mode })} />
-          </div>
-          <div className="score-row">
-            <span className="score-eyebrow">Level</span>
-            <Segmented options={PRESETS} value={grading.preset} disabled={busy} onChange={(preset) => onGradingChange({ ...grading, preset })} />
-          </div>
-        </div>
+        <fieldset className={`radio-group${busy ? ' busy' : ''}`} disabled={busy}>
+          <legend>Grading</legend>
+          <RadioRow
+            label="Timing"
+            name="timing"
+            options={MODES}
+            value={grading.mode}
+            onChange={(mode) => onGradingChange({ ...grading, mode })}
+          />
+          <RadioRow
+            label="Level"
+            name="level"
+            options={PRESETS}
+            value={grading.preset}
+            onChange={(preset) => onGradingChange({ ...grading, preset })}
+          />
+        </fieldset>
       )}
-    </section>
+    </>
   )
 }
 
-function Segmented<T extends string>({
+function RadioRow<T extends string>({
+  label,
+  name,
   options,
   value,
-  disabled,
   onChange,
 }: {
+  label: string
+  name: string
   options: { value: T; label: string; hint: string }[]
   value: T
-  disabled: boolean
   onChange: (v: T) => void
 }) {
   return (
-    <div className="segmented" role="radiogroup">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={o.value === value}
-          className={o.value === value ? 'on' : ''}
-          title={o.hint}
-          disabled={disabled}
-          onClick={() => o.value !== value && onChange(o.value)}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div className="grading-row" role="radiogroup" aria-label={label}>
+      <span className="grading-label">{label}</span>
+      <div className="radio-row">
+        {options.map((o) => (
+          <label key={o.value} className="radio" title={o.hint}>
+            <input type="radio" name={name} checked={o.value === value} onChange={() => onChange(o.value)} />
+            <span>{o.label}</span>
+          </label>
+        ))}
+      </div>
     </div>
   )
 }
