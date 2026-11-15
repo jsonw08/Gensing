@@ -10,7 +10,8 @@ Steps (later parts fill in the marked ones):
   3. the singer's clock from that pass's near-right matches: offset (strict), or offset + speed (free)
   4. fill the table (pitch + timing) and trace back
   5. split-note merge: an extra that is really a piece of its neighbouring match joins it
-  6. near_id on extras
+  6. joined notes: a skipped repeated note that its neighbour's long sung note covers is a match too
+  7. near_id on extras
 """
 
 from statistics import median
@@ -51,6 +52,11 @@ MERGE_MAX_GAP_SEC = 0.2  # at most this much silence between the pieces (a delib
 # later pairing by one note than pay for a wrong note + a piece. Merged afterwards, so it costs nothing.
 PIECE_EXTRA_COST = 0.5  # extra cost for a sung note that looks like a piece of its sung neighbour
 
+# Joined notes: the opposite stage 3 error. Written G G sung smoothly is one long sung G; the second G
+# would show as skipped. It is matched to the same sung note ("joined": true) when its neighbour is the
+# same written pitch, the sung note is in tune for it, and lasts through at least this share of it:
+JOIN_MIN_COVER = 0.5
+
 
 def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
     """mode: "free" (the singer's own tempo; the main mode) or "strict" (the score's tempo)."""
@@ -68,6 +74,7 @@ def align(expected_notes: dict, sung_notes: dict, mode: str = "strict") -> dict:
 
     pairs, _ = _fill_and_trace(written, sung, sung_secs, octave_shift)
     pairs = _merge_split_notes(pairs, written, sung, octave_shift)
+    pairs = _join_repeated_notes(pairs, written, sung, octave_shift, time_offset, tempo_scale)
     total = sum(p["cost"] for p in pairs)
 
     sec_of = {s["sid"]: t for s, t in zip(sung, sung_secs)}
@@ -250,3 +257,34 @@ def _is_piece_of(extra: dict, match: dict, sung_by_sid, written, index_of, octav
     here = abs(pitch - written[k]["midi"])
     sides = [written[i]["midi"] for i in (k - 1, k + 1) if 0 <= i < len(written)]
     return all(here <= abs(pitch - m) for m in sides)
+
+
+def _join_repeated_notes(pairs, written, sung, octave_shift, time_offset, tempo_scale) -> list[dict]:
+    """Turn a skipped note into a match sharing its neighbour's sung note when that one sung note
+    really covers both written notes (same written pitch, in tune, lasts through >= JOIN_MIN_COVER of
+    the skipped note on the score's clock). Left to right, so G G G sung as one note joins twice."""
+    sung_by_sid = {s["sid"]: s for s in sung}
+    index_of = {w["id"]: k for k, w in enumerate(written)}
+    for k, pair in enumerate(pairs):
+        if pair["type"] != "skipped":
+            continue
+        i = index_of[pair["id"]]
+        for nb in (k - 1, k + 1):
+            if not (0 <= nb < len(pairs) and pairs[nb]["type"] == "match"):
+                continue
+            j = index_of[pairs[nb]["id"]]
+            # Same written pitch: the rule as agreed. (Today the in-tune check below already implies it,
+            # since neighbouring written notes a semitone or more apart can't both be within 0.5.)
+            if abs(i - j) != 1 or written[j]["midi"] != written[i]["midi"]:
+                continue
+            piece = sung_by_sid[pairs[nb]["sids"][-1 if nb < k else 0]]  # the piece nearest the skipped note
+            if abs(piece["midi"] - octave_shift - written[i]["midi"]) > OFFSET_PITCH_TOL:
+                continue
+            start = (piece["start_sec"] - time_offset) * tempo_scale
+            end = (piece["end_sec"] - time_offset) * tempo_scale
+            w0, w1 = written[i]["onset_sec"], written[i]["onset_sec"] + written[i]["duration_sec"]
+            if min(end, w1) - max(start, w0) >= JOIN_MIN_COVER * written[i]["duration_sec"]:
+                cost = round(min(abs(piece["midi"] - octave_shift - written[i]["midi"]), PITCH_CAP), 4)
+                pairs[k] = {"type": "match", "id": pair["id"], "sids": [piece["sid"]], "cost": cost, "joined": True}
+                break
+    return pairs

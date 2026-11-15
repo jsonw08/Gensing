@@ -196,9 +196,10 @@ Each pair:
 |---|---|---|
 | `type` | `match` \| `skipped` \| `extra` | |
 | `id` | string\|null | Written note; null for extras |
-| `sids` | string[] | `match`: 1+ (more than one = split-note merge), `skipped`: empty, `extra`: exactly 1 |
+| `sids` | string[] | `match`: 1+ (more than one = split-note merge), `skipped`: empty, `extra`: exactly 1. Every sung note appears in exactly one pair, except that a `joined` pair reuses its neighbour's sid. |
 | `cost` | float | Optional, debug |
 | `near_id` | string | Extras only: the note **or rest** whose time span contains the extra's start, else the nearest onset |
+| `joined` | `true` | Optional, matches only: this written note had no sung note of its own. Its neighbour, the **same written pitch**, was sung as one long note that stays in tune (within 0.5 semitone) and lasts through at least half of this note (on the score's clock): e.g. written G G sung legato. `sids` = that neighbour's sung note. Stage 5 grades its pitch; its timing is `null` (no separate start to measure). |
 
 **Split-note merge:** if stage 3 cut one sung note in two, stage 4 pairs both pieces with one
 written note (`"sids": ["s1", "s2"]`). Stage 5 then uses start of the first piece, end of the
@@ -212,7 +213,7 @@ stays with that note). Repeats until nothing changes (3+ pieces → one match). 
 note that looks like a piece of its sung neighbour costs **0.5** as an extra instead of 3; otherwise the
 table would rather shift every later pairing by one note than pay for it. Not merged: grace notes and
 ornaments sung correctly (stage 1 skips grace notes, so they show as extras), and the opposite stage 3
-error (two written notes joined into one sung note shows as a skip).
+error (two written notes joined into one sung note) is handled separately: see `joined` above.
 
 **Costs (starting values, tune on test takes):** pair = semitones apart (capped at 4) + 0.5 ×
 beats apart (seconds apart × that written note's own beats per second, so tempo changes are
@@ -241,7 +242,7 @@ Each entry in `notes`:
 | `status` | `in_tune` \| `out_of_tune` \| `wrong_note` \| `skipped` | **Pitch** verdict; decides the notehead color |
 | `cents` | float\|null | (sung − octave_shift − written) × 100. Negative = flat. null if skipped. |
 | `sang` | string\|null | Nearest note name actually sung (after octave shift) |
-| `timing` | `on_time` \| `early` \| `late` \| null | **Timing** verdict, separate from pitch. null if skipped. |
+| `timing` | `on_time` \| `early` \| `late` \| null | **Timing** verdict, separate from pitch. null if skipped or `joined` (no separate start). |
 | `timing_ms` | int\|null | After subtracting the median offset; positive = late |
 | `sung_start_sec`, `sung_end_sec` | float\|null | Where it is in the recording (for click-to-hear). Merged span for split notes. |
 | `uncertain` | bool | Low confidence: still gets a status, excluded from the score, drawn faded |
@@ -413,7 +414,6 @@ update this list when one is fixed.
 |---|---|---|
 | **Fermatas** | Singer holds longer than written; in strict mode every later note looks late | Planned: stage 1 flags them, stage 4 measures the offset per section |
 | **"rit." / "accel." text** (amount not written) | Strict mode marks the slowed/sped notes late/early | Use free mode for such pieces (it follows the singer's local pulse) |
-| **Repeated same-pitch notes sung legato** (G G joined by stage 3) | One sung note for two written ones → the second shows as **skipped** | Planned: stage 4 "joined notes" fix |
 | **Fast runs, melismas** (notes under ~150 ms) | Stage 3 needs a pitch held ≥ 50 ms and drops pieces < 80 ms → notes blur: skips, odd pitches | Slow demo pieces; stage 3 tuning |
 | **Grace notes, trills, turns sung correctly** | Stage 1 skips grace notes (no ID) → the sung ornament shows as **extra** | Avoid in demo pieces |
 | **Slides between notes** (portamento) | May become a short in-between extra, or make the next note look early | Split-note merge covers part of it |

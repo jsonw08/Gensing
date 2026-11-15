@@ -117,11 +117,16 @@ def check_invariants(expected, sung_notes, result):
     # every written note exactly once (match or skipped), in score order; rests never
     assert [p["id"] for p in result["pairs"] if p["type"] != "extra"] == written_ids
     assert not rest_ids & {p["id"] for p in result["pairs"]}
-    # every sung note exactly once (in a match or as an extra), in time order
-    assert [s for p in result["pairs"] for s in p["sids"]] == [s["sid"] for s in sung_notes["notes"]]
+    # every sung note exactly once (in a match or as an extra), in time order; a joined pair shares
+    # its neighbour's sung note, so it isn't counted again
+    assert [s for p in result["pairs"] if not p.get("joined") for s in p["sids"]] == [s["sid"] for s in sung_notes["notes"]]
+    for p in result["pairs"]:
+        if p.get("joined"):
+            assert p["type"] == "match" and len(p["sids"]) == 1
     # shapes
     for p in result["pairs"]:
-        assert set(p) == {"type", "id", "sids", "cost"} | ({"near_id"} if p["type"] == "extra" else set())
+        optional = ({"near_id"} if p["type"] == "extra" else set()) | ({"joined"} if p.get("joined") else set())
+        assert set(p) == {"type", "id", "sids", "cost"} | optional
         assert len(p["sids"]) >= 1 if p["type"] == "match" else len(p["sids"]) == {"skipped": 0, "extra": 1}[p["type"]]
     assert result["total_cost"] == pytest.approx(sum(p["cost"] for p in result["pairs"]), abs=1e-3)
     json.loads(json.dumps(result), parse_constant=lambda c: pytest.fail(c))
@@ -550,3 +555,77 @@ def test_strict_mode_never_changes_speed():
     expected = parse_score(score_path("c-major-scale"))
     result = align(expected, at_speed(load_take("c-major-scale", "perfect")[0], 0.75), mode="strict")
     assert result["tempo_scale"] == 1.0
+
+
+
+# --------------------------------------------------------------------------- joined notes
+
+
+def test_repeated_note_sung_legato_is_joined_not_skipped():
+    # Written G G A; the two G's sung as one long G (stage 3 sees one note)
+    expected = written("G4", "G4", "A4")
+    sung_notes = notes_at((67, 0.0, 1.95), (69, 2.0, 2.8))
+    result = align(expected, sung_notes)
+    check_invariants(expected, sung_notes, result)
+    assert summary(result) == [("match", "m1-n0", ["s0"]), ("match", "m1-n1", ["s0"]), ("match", "m1-n2", ["s1"])]
+    assert result["pairs"][1]["joined"] is True and "joined" not in result["pairs"][0]
+
+
+@pytest.mark.parametrize("end,joined", [(0.9, False), (1.4, False), (1.6, True)])
+def test_join_needs_the_sung_note_to_last_through_half_the_next(end, joined):
+    # The second G spans 1.0-2.0 s: covering 0 or 0.4 s of it isn't enough, 0.6 s is
+    result = align(written("G4", "G4", "A4"), notes_at((67, 0.0, end), (69, 2.0, 2.8)))
+    assert by_id(result)["m1-n1"]["type"] == ("match" if joined else "skipped")
+
+
+def test_three_repeated_notes_in_one_breath():
+    result = align(written("G4", "G4", "G4", "A4"), notes_at((67, 0.0, 2.9), (69, 3.0, 3.8)))
+    assert [p["type"] for p in result["pairs"]] == ["match"] * 4
+    assert [bool(p.get("joined")) for p in result["pairs"]] == [False, True, True, False]
+    assert {tuple(p["sids"]) for p in result["pairs"][:3]} == {("s0",)}
+
+
+def test_different_written_pitches_never_join():
+    # Written G A, one long G: the A really was skipped (the G was just held too long)
+    result = align(written("G4", "A4", "C6"), notes_at((67, 0.0, 1.9), (84, 2.0, 2.8)))
+    assert by_id(result)["m1-n1"]["type"] == "skipped"
+
+
+def test_out_of_tune_long_note_does_not_join():
+    # One long note a semitone sharp (G#): wrong for both G's, so the second stays skipped
+    result = align(written("G4", "G4", "A4"), notes_at((68, 0.0, 1.95), (69, 2.0, 2.8)))
+    assert by_id(result)["m1-n1"]["type"] == "skipped"
+
+
+def test_joined_works_an_octave_down_and_in_free_mode():
+    expected = written("C4", "D4", "G4", "G4", "A4", "C4")
+    # an octave down, at 0.8x speed (each written second takes 1.25 s), the two G's as one note
+    k = 1.25
+    sung_notes = notes_at((48, 0, 0.9 * k), (50, 1 * k, 1.9 * k), (55, 2 * k, 3.95 * k), (57, 4 * k, 4.9 * k), (48, 5 * k, 5.9 * k))
+    result = align(expected, sung_notes, mode="free")
+    check_invariants(expected, sung_notes, result)
+    assert (result["octave_shift"], result["tempo_scale"]) == (-12, pytest.approx(0.8, abs=0.01))
+    assert by_id(result)["m1-n3"] == {"type": "match", "id": "m1-n3", "sids": ["s2"], "cost": 0.0, "joined": True}
+
+
+
+def test_slow_singer_who_stops_early_is_not_joined():
+    # Free mode, singer at half speed. Their long G (4.0-6.6 s) is score time 2.0-3.3 s: it covers only
+    # 0.3 of the second G (3-4 s) -> skipped.
+    expected = written("C4", "D4", "G4", "G4", "A4", "C4")
+    sung_notes = notes_at((60, 0, 1.8), (62, 2, 3.8), (67, 4, 6.6), (69, 8, 9.8), (60, 10, 11.8))
+    result = align(expected, sung_notes, mode="free")
+    assert result["tempo_scale"] == pytest.approx(0.5)
+    assert by_id(result)["m1-n3"]["type"] == "skipped"
+
+
+
+def test_join_coverage_uses_the_score_clock_for_a_fast_singer():
+    # Free mode at 1.5x speed. The long G is 1.333-2.4 s on the singer's clock = 2.0-3.6 s on the score's:
+    # it covers 0.6 of the second G (3-4 s) -> joined. Measured on the singer's clock it covers nothing.
+    expected = written("C4", "D4", "G4", "G4", "A4", "C4")
+    k = 1 / 1.5
+    sung_notes = notes_at((60, 0, 0.9 * k), (62, 1 * k, 1.9 * k), (67, 2 * k, 2.4), (69, 4 * k, 4.8 * k), (60, 5 * k, 5.8 * k))
+    result = align(expected, sung_notes, mode="free")
+    assert result["tempo_scale"] == pytest.approx(1.5)
+    assert by_id(result)["m1-n3"].get("joined") is True
