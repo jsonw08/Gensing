@@ -207,14 +207,18 @@ written note (`"sids": ["s1", "s2"]`). Stage 5 then uses start of the first piec
 last, and the duration-weighted average pitch.
 
 Rule (starting values, constants in `align.py`): an extra joins the match right before or after it
-when it is within **1 semitone** of that match's nearest sung piece (short pieces of one vibrato note
-can land ~1 semitone apart), with at most **0.2 s** of silence between them, and is no closer in pitch
-to the written notes either side than to this one (so a note sliding toward the next written note
-stays with that note). Repeats until nothing changes (3+ pieces → one match). Inside the table, a sung
-note that looks like a piece of its sung neighbour costs **0.5** as an extra instead of 3; otherwise the
-table would rather shift every later pairing by one note than pay for it. Not merged: grace notes and
-ornaments sung correctly (stage 1 skips grace notes, so they show as extras), and the opposite stage 3
-error (two written notes joined into one sung note) is handled separately: see `joined` above.
+(the one whose nearest sung piece is closer in pitch first) when it is within **1 semitone** of that
+piece (short pieces of one vibrato note can land ~1 semitone apart), with at most **0.2 s** of silence
+between them, and either is within **0.3 semitone** of it (the same sung note, whatever was written:
+e.g. a *wrong* note cut in two) or is no closer in pitch to the written notes either side than to this one
+(so a note sliding toward the next written note stays with that note). Repeats until nothing changes
+(3+ pieces → one match). Inside the table, a sung note that looks like a piece of its sung neighbour is
+a cheap extra, otherwise the table would rather shift every later pairing by one note than pay for it:
+**0.5** within 0.3 semitone, **1.5** within 1 semitone (a wrong note sung a semitone from its neighbour
+looks the same, and at 0.5 it let the table shift every later pairing by one note), else 3. Not merged:
+grace notes and ornaments sung correctly (stage 1 skips grace notes, so they show as extras), and the
+opposite stage 3 error
+(two written notes joined into one sung note) is handled separately: see `joined` above.
 
 **Costs (starting values, tune on test takes):** pair = semitones apart (capped at 4) + 0.5 ×
 beats apart (seconds apart × that written note's own beats per second, so tempo changes are
@@ -233,7 +237,7 @@ wrong-but-present note is reported as "wrong note", not skip + extra.
 | `counts` | `notes`, `in_tune`, `out_of_tune`, `wrong_note`, `skipped`, `extra`, `early`, `late`, `uncertain` |
 | `notes` | **One entry per written note (not rests)**, in score order. Fields below. |
 | `extras` | `sid`, `near_id`, `sang`, `during_rest` (= `near_id` is a rest), `start_sec`, `end_sec` |
-| `patterns` | `worst_measures` (int[]), `drift_cents` {`first_third`, `last_third`}, `high_notes_flat` (bool), `timing_tendency` (`rushing`\|`dragging`\|`steady`), `shaky_long_notes` (ids), `errors_after_leaps` (ids). C owns the exact rules; field names are fixed. |
+| `patterns` | `worst_measures` (int[]), `drift_cents` {`first_third`, `last_third`}, `high_notes_flat` (bool), `timing_tendency` (`rushing`\|`dragging`\|`steady`), `shaky_long_notes` (ids), `errors_after_leaps` (ids). C owns the exact rules (below); field names are fixed. |
 
 Each entry in `notes`:
 
@@ -248,31 +252,77 @@ Each entry in `notes`:
 | `sung_start_sec`, `sung_end_sec` | float\|null | Where it is in the recording (for click-to-hear). Merged span for split notes. |
 | `uncertain` | bool | Low confidence: still gets a status, excluded from the score, drawn faded |
 
-**Verdict rules (starting values):**
+**Verdict rules (starting values, constants in `grade.py`):**
 
 | Check | Rule | Verdict |
 |---|---|---|
 | Pitch | within ±25 cents | `in_tune` |
-| Pitch | 25–50 cents | `out_of_tune` |
+| Pitch | 25–50 cents (exactly 50: still the written note) | `out_of_tune` |
 | Pitch | over 50 cents | `wrong_note` (+ `sang`) |
 | Timing | within ±max(⅛ beat, 80 ms) | `on_time` (±94 ms at 80 BPM) |
 | Timing | outside | `early` / `late` |
+| Confidence | the sung note's mean `conf` < 0.5 (stage 3's own frame cutoff; test takes sit at 0.83–0.93) | `uncertain` |
+
+`sang` is the written note's name (sharp spelling) for `in_tune` / `out_of_tune`, and the nearest sung
+note (after the octave shift) for `wrong_note`, so a note exactly 50 cents off doesn't read "F4, sang F#4".
+Split notes (several `sids`): pitch and confidence are duration-weighted over the pieces, timing is
+the first piece's start. "⅛ beat" is the written note's own beat (tempo changes followed), in the
+singer's seconds (÷ `tempo_scale`).
 
 Strict mode measures timing against the score's tempo (stage 1 onsets; the singer heard it only in the
-count-in). Free mode measures against a
-line fit through ~4 neighbors on each side. Both subtract the singer's median offset first
+count-in). Both modes subtract the singer's median offset first
 (browser recording delay of 50–150 ms + consonant-before-vowel, or an upload's lead-in silence):
 that offset is `alignment.time_offset_sec` (or the pair's own `time_offset_sec` when present, in
 scores with fermatas), so stage 4 and 5 use the same number. After a fermata the next notes are judged
 from where the singer came back in (like a conductor's new downbeat), not from the original timeline.
 
-**Score weights (first guess):** pitch 40% (% of notes on the right note), intonation 20% (avg
-cents off on right notes: 0 → 100, 50 → 0), rhythm 25% (% of matched notes on time),
-completeness 15% (% not skipped, minus a small penalty per extra).
-**Pitch should count more** (decided 2026-11-14): e.g. pitch 50 / intonation 25 / rhythm 15 /
-completeness 10. Exact numbers are set when stage 5 is built.
+**Free mode** starts from stage 4's clock (offset + `tempo_scale`) and corrects it with the note's
+neighbours (up to 4 timed notes on each side, same fermata section, not uncertain, not the note itself;
+fewer than 3: the clock alone). Two readings of the neighbours' leftovers (sung start − clock): their
+**median** (steady pulse) and an outlier-resistant **line** through them (Theil-Sen: steadily speeding up
+or slowing down). A note is early/late only if it sticks out from **both**; `timing_ms` is the smaller
+deviation. (Was "a line fit through ~4 neighbours". A line alone tilts when two planted mistakes are
+among a last note's 4 neighbours; a median alone lags in a long slowdown. A third reading, between the
+two immediate neighbours, was tried and dropped: two late notes in a row then excuse each other.)
+Tested: steady slowing of 2% per note (~30% slower by the end) stays green and a ±250 ms note in it is
+caught. See section 9 for what it doesn't follow.
 
-Optional presets: beginner ±35 cents / ±¼ beat; advanced ±15 cents / ±1/16 beat.
+**Score (decided 2026-11-14, weights may be retuned; constants in `grade.py`).** Each part is an int
+0–100, from the notes that aren't `uncertain`:
+
+| Part | Weight | How |
+|---|---|---|
+| `pitch` | 50% | % of written notes on the right note (`in_tune` or `out_of_tune`). Skipped notes count against it. |
+| `intonation` | 25% | 100 − 2 × average \|cents\| over the right notes (0 → 100, 50 → 0) |
+| `rhythm` | 15% | % of notes with a timing verdict that are `on_time` (skipped and `joined` notes have none) |
+| `completeness` | 10% | % of written notes not skipped, minus 5 per extra (low-confidence extras: no penalty) |
+
+`total` = weighted sum of the unrounded parts. Rounding is half up (82.5 → 83). Clamped to 0–100;
+nothing to judge (no notes, or all uncertain) → 0. A skipped note costs both pitch and completeness, so
+not singing a note costs more than singing the wrong one. Test takes (real pipeline): clean 100,
+`mistakes` 78 (`c-major-scale`) and 88 (`edge-cases`).
+
+**Patterns** (constants in `grade.py`; `uncertain` notes and low-confidence extras left out). Computed
+here so the LLM never does math:
+
+| Field | Rule |
+|---|---|
+| `worst_measures` | Up to 3 bars with the most problems, most first (ties: earlier bar). One problem each for a pitch problem (not `in_tune`), a timing problem (`early`/`late`), an extra whose `near_id` is in the bar. Bars without problems never appear. |
+| `drift_cents` | Average cents of the right notes in the first and the last third of the written notes (⌊n/3⌋ notes each); int, `null` if that third has no right notes. |
+| `high_notes_flat` | Right notes above the median written pitch average ≥ 15 cents flatter than those below it, and ≤ −10 cents themselves. Needs ≥ 3 notes on each side. |
+| `timing_tendency` | The singer's speed (Theil-Sen slope of sung start vs written onset, within fermata sections) in the last third of the timed notes vs the first third: > 8% slower `dragging`, > 8% faster `rushing` (needs ≥ 3 notes a third). Strict mode, if that's steady: the whole take vs the score's tempo, same 8%. Free mode never judges the overall tempo (the singer's own is fine). |
+| `shaky_long_notes` | Right notes written ≥ 1 beat with `stability_cents` > 40 (duration-weighted over split pieces). A ±30-cent vibrato is ~21; stage 3 reads the test takes at 8–14. Tune on real voices: wide operatic vibrato may cross 40. |
+| `errors_after_leaps` | `out_of_tune` / `wrong_note` notes right after a written jump of ≥ 4 semitones from the previous written note (rests ignored). |
+
+**Presets** (`preset` form field):
+
+| Preset | In tune | On time |
+|---|---|---|
+| `default` | ±25 cents | ±max(⅛ beat, 80 ms) |
+| `beginner` | ±35 cents | ±max(¼ beat, 80 ms) |
+| `advanced` | ±15 cents | ±max(1/16 beat, 50 ms) (a lower floor: 1/16 beat is 47 ms at 80 BPM, so an 80 ms floor would be no stricter than default) |
+
+The wrong-note line (50 cents) is the same in every preset. The frontend doesn't offer presets yet.
 
 ### 4.6 `feedback.json` (stage 6 → 7; returned by `/feedback`)
 
@@ -384,7 +434,7 @@ Answer key format: `settings` (what to send to `/analyze`), `expect` (`octave_sh
 Pieces: `c-major-scale` (simplest), `edge-cases` (pickup bar, rests, tie across a barline,
 repeated notes, 7-semitone leap). **After any change to stages 2–5, run every take:** `perfect`
 stays green and every planted mistake is still caught. Automated: `npm run check:takes`
-(`tools/check_takes.py`; stages 1-4 today, stage 5 verdicts to be added.)
+(`tools/check_takes.py`; stages 1-5: every note's verdict vs the answer key.)
 
 Known quirk: in `octave-down`, pYIN marks a few noise frames during rests as voiced (conf ≈ 0.01,
 ~1% of singing loudness). Stage 3's confidence cutoff must drop them.
@@ -417,6 +467,9 @@ update this list when one is fixed.
 |---|---|---|
 | **Fermatas** (handled) | Each section between fermatas gets its own clock. A section with < 3 near-right notes borrows the previous section's offset, so a hold just before the last 1–2 notes still makes them look late. Coming back in late after a fermata isn't flagged (by design). | Fermatas on a barline (rare) aren't read |
 | **"rit." / "accel." text** (amount not written) | Strict mode marks the slowed/sped notes late/early | Use free mode for such pieces (it follows the singer's local pulse) |
+| **Sudden or strong tempo bends in free mode** (a final ritardando of the last 3–4 notes, each 10%+ longer; or slowing by 4%+ per note) | Free mode follows gradual changes (tested to 2% per note), but at a sharp bend, especially the last notes where every neighbour is on one side, a note or two is marked late/early | Possible fix: wider window on the last notes of the piece. Demo: avoid a big final rit. |
+| **Stage 3 cuts a note in two, next to a skipped note or as an extra** | (1) A held A4 cut in two right before a skipped B4: the second half is reported as "B4, wrong note (sang A4), early" instead of B4 skipped. From the sound alone it is the same as singing A4 twice; B4 is flagged either way. (2) An extra cut in two shows as two extras ("+2"). Cut wrong notes and the shift-by-one cascade are fixed: every other split position in the `mistakes` takes, and all of them in the clean takes, pair correctly. | (2) would need `extra` pairs with several `sids` (a contract change); rare and cosmetic |
+| **Free-mode speed in a very short take with several timing mistakes** | `c-major-scale` mistakes (8 notes: two ±200 ms, a skip, a wrong note) with a split first note: too few trustworthy points, the fitted speed comes out 1.125 instead of 1.0 and the last notes look late | Real pieces are longer (15 notes in `edge-cases` don't show it) |
 | **Fast runs, melismas** (notes under ~150 ms) | Stage 3 needs a pitch held ≥ 50 ms and drops pieces < 80 ms → notes blur: skips, odd pitches | Slow demo pieces; stage 3 tuning |
 | **Grace notes, trills, turns sung correctly** | Stage 1 skips grace notes (no ID) → the sung ornament shows as **extra** | Avoid in demo pieces |
 | **Slides between notes** (portamento) | May become a short in-between extra, or make the next note look early | Split-note merge covers part of it |
